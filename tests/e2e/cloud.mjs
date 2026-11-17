@@ -31,6 +31,7 @@ const browser = await chromium.launch({ executablePath: CHROME, args: ['--no-san
 const errors = [];
 async function device(seed) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  await ctx.addInitScript(() => localStorage.setItem('all.toured', '1')); // the welcome tour has its own test
   const page = await ctx.newPage();
   page.on('pageerror', (e) => errors.push(e.message));
   if (seed) {

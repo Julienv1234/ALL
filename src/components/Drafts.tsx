@@ -47,8 +47,12 @@ function DraftCard({ d }: { d: Draft }) {
   }
 
   return (
-    <div className="stack" style={{ padding: '14px 0', gap: 8 }}>
-      <div className="faint">{t(`draft.${d.kind}` as Key)} · {t('draft.from')}: “{d.source}”</div>
+    <article className="stack" style={{ padding: '14px 0', gap: 8 }} aria-label={d.title}>
+      <div className="faint">{t(`draft.${d.kind}` as Key)} · {d.source.startsWith('workflow:')
+        ? <>{t('draft.fromFlow')} “{d.source.slice(9)}”</>
+        : d.source.startsWith('agent:') ? <>{t('draft.fromAgent')} “{d.source.slice(6)}”</>
+          : <>{t('draft.from')}: “{d.source}”</>}</div>
+      {d.kind === 'note' && d.body && <div className="muted" style={{ fontSize: 14, whiteSpace: 'pre-line' }}>{d.body}</div>}
       <div style={{ fontSize: 15, fontWeight: 500, overflowWrap: 'anywhere' }}>{d.title}</div>
       {when && <div className="muted" style={{ fontSize: 14 }}>{when}</div>}
       <div className="wrap">
@@ -56,7 +60,7 @@ function DraftCard({ d }: { d: Draft }) {
         <button type="button" className="btn" onClick={() => { setTitle(d.title); setDate(d.date); setTime(d.time); setBody(d.body); setEdit(true); }}>{t('draft.edit')}</button>
         <button type="button" className="btn ghost" onClick={() => { actions.rejectDraft(d); toast(t('draft.rejected'), lastLogId()); }}>{t('draft.reject')}</button>
       </div>
-    </div>
+    </article>
   );
 }
 

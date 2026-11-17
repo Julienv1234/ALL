@@ -6,6 +6,7 @@ import { useT } from '@/lib/i18n';
 import { actions, useAll, useReady } from '@/lib/store';
 import { fmt, remainingMs, timer, useTimer } from '@/lib/timer';
 import { toast } from '@/lib/toast';
+import { firstTime, notify } from '@/lib/notify';
 
 /**
  * Lives on every page: saves the session when the focus timer runs out, wherever you are,
@@ -27,8 +28,11 @@ export default function TimerWatch() {
     if (done && s.subjects.some((x) => x.id === done.subjectId)) {
       actions.addSession(done.subjectId, done.minutes, done.date);
       toast(t('learn.done'));
+      const name = s.subjects.find((x) => x.id === done.subjectId)?.name ?? '';
+      const key = `timer:${done.subjectId}:${Date.now() - (Date.now() % 60_000)}`;
+      if (s.settings.remind.on && firstTime(key)) notify(t('learn.doneTitle'), `${done.minutes} ${t('learn.min')} ${name}`, key);
     }
-  }, [ready, tt, left, s.subjects, t]);
+  }, [ready, tt, left, s.subjects, s.settings.remind.on, t]);
 
   useEffect(() => {
     if (!tt) { document.title = 'ALL'; return; }

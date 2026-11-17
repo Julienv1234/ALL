@@ -3,7 +3,7 @@
  * where possible, a way to undo it. No React and no browser APIs, so it is
  * easy to test.
  */
-import type { CalEvent, Collection, Draft, Item, LogEntry, Memory, Note, Project, Session, State, Subject, Task, Undo } from './types';
+import type { Access, Agent, AgentArea, CalEvent, Collection, Draft, Habit, Item, LogEntry, Memory, Note, Project, Reminders, Rule, RuleWhen, Session, Site, SiteTemplate, State, Subject, Task, Undo } from './types';
 
 export const LOG_LIMIT = 500;
 
@@ -18,10 +18,16 @@ export function emptyState(): State {
     projects: [],
     subjects: [],
     sessions: [],
+    habits: [],
+    rules: [],
+    sites: [],
+    agents: [],
     log: [],
-    settings: { lang: 'nl', name: '' },
+    settings: { lang: 'nl', name: '', remind: { ...DEFAULT_REMIND } },
   };
 }
+
+export const DEFAULT_REMIND: Reminders = { on: false, before: 15, tasks: true };
 
 export function newId(): string {
   const c = (globalThis as { crypto?: Crypto }).crypto;
@@ -61,7 +67,9 @@ export function createMany(s: State, c: Collection, items: Item[], label: string
 export function updateItem(s: State, c: Collection, item: Item, label: string): State {
   const prev = list(s, c).find((x) => x.id === item.id);
   if (!prev) return s;
-  const next = setList(s, c, list(s, c).map((x) => (x.id === item.id ? item : x)));
+  // Screens often pass a "view" with extra computed fields (streak, counts...). Store only the real fields.
+  const clean = Object.fromEntries(Object.keys(prev).map((k) => [k, (item as unknown as Record<string, unknown>)[k] ?? (prev as unknown as Record<string, unknown>)[k]])) as unknown as Item;
+  const next = setList(s, c, list(s, c).map((x) => (x.id === item.id ? clean : x)));
   return addLog(next, label, c, { type: 'replace', collection: c, item: prev });
 }
 
@@ -173,6 +181,167 @@ export function streak(s: State, today: string): number {
   let n = 0;
   while (days.has(d)) { n++; d = addDays(d, -1); }
   return n;
+}
+
+/* ---------- habits ---------- */
+
+/** Weekday of a YYYY-MM-DD day, 0 = Monday ... 6 = Sunday. */
+export function weekday(day: string): number {
+  const [y, m, d] = day.split('-').map(Number);
+  return (new Date(y, m - 1, d).getDay() + 6) % 7;
+}
+
+export function makeHabit(name: string, days: number[] = []): Habit {
+  const clean = [...new Set(days.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))].sort();
+  return { id: newId(), name: name.trim(), days: clean.length === 7 ? [] : clean, done: [], archived: false, createdAt: nowIso() };
+}
+
+export const plannedOn = (h: Habit, day: string) => h.days.length === 0 || h.days.includes(weekday(day));
+
+/** Toggles one day; returns the new habit. */
+export function toggleHabitDay(h: Habit, day: string): Habit {
+  const done = h.done.includes(day) ? h.done.filter((d) => d !== day) : [day, ...h.done].sort().reverse().slice(0, 800);
+  return { ...h, done };
+}
+
+export interface HabitView extends Habit {
+  today: boolean; // planned today
+  doneToday: boolean;
+  streak: number; // planned days in a row that were done
+  last7: { date: string; planned: boolean; done: boolean }[];
+  rate: number; // percent of planned days done in the last 28 days (or since it started)
+}
+
+export function habitViews(s: State, today: string): HabitView[] {
+  return s.habits.map((h) => {
+    const done = new Set(h.done);
+    const start = h.createdAt.slice(0, 10) <= today ? isoDay(new Date(h.createdAt)) : today;
+    // A planned day that is not done yet today does not break the streak.
+    let d = plannedOn(h, today) && !done.has(today) ? addDays(today, -1) : today;
+    let streak = 0;
+    for (let i = 0; i < 800; i++) {
+      if (plannedOn(h, d)) {
+        if (done.has(d)) streak++;
+        else break;
+      } else if (d < start && !done.has(d)) break;
+      d = addDays(d, -1);
+    }
+    let planned = 0;
+    let hit = 0;
+    for (let i = 0; i < 28; i++) {
+      const day = addDays(today, -i);
+      if (day < start && !done.has(day)) break;
+      if (!plannedOn(h, day)) continue;
+      if (day === today && !done.has(day)) continue;
+      planned++;
+      if (done.has(day)) hit++;
+    }
+    return {
+      ...h,
+      today: plannedOn(h, today),
+      doneToday: done.has(today),
+      streak,
+      last7: Array.from({ length: 7 }, (_, i) => {
+        const date = addDays(today, i - 6);
+        return { date, planned: plannedOn(h, date), done: done.has(date) };
+      }),
+      rate: planned ? Math.round((hit / planned) * 100) : 0,
+    };
+  });
+}
+
+/* ---------- workflow rules (no AI) ---------- */
+
+export function makeRule(r: Omit<Rule, 'id' | 'runs' | 'createdAt' | 'enabled'> & { enabled?: boolean }): Rule {
+  return { ...r, name: r.name.trim(), title: r.title.trim(), project: r.project.trim(), enabled: r.enabled ?? true, id: newId(), runs: [], createdAt: nowIso() };
+}
+
+export interface RuleHit { key: string; date: string; vars: Record<string, string> }
+
+/** The moments this rule should fire for today that it has not fired for yet. */
+export function ruleHits(r: Rule, s: State, today: string): RuleHit[] {
+  if (!r.enabled) return [];
+  const created = isoDay(new Date(r.createdAt));
+  const fresh = (h: RuleHit) => !r.runs.includes(h.key) && h.date >= created;
+  const w = r.when;
+  let hits: RuleHit[] = [];
+  if (w.type === 'daily') hits = [{ key: today, date: today, vars: {} }];
+  else if (w.type === 'weekly') {
+    const date = addDays(today, -((weekday(today) - w.weekday + 7) % 7));
+    hits = [{ key: date, date, vars: {} }];
+  } else if (w.type === 'monthly') {
+    const [y, m, d] = today.split('-').map(Number);
+    const day = Math.min(28, Math.max(1, w.day));
+    const date = d >= day ? `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}` : isoDay(new Date(y, m - 2, day));
+    hits = [{ key: date, date, vars: {} }];
+  } else if (w.type === 'examSoon') {
+    hits = subjectViews(s, today)
+      .filter((x) => !x.archived && x.daysToExam !== null && x.daysToExam <= w.days)
+      .map((x) => ({ key: `exam:${x.id}:${x.exam}`, date: today, vars: { vak: x.name, examen: x.exam } }));
+    return hits.filter((h) => !r.runs.includes(h.key));
+  }
+  return hits.filter(fresh);
+}
+
+export function fillTemplate(t: string, h: RuleHit): string {
+  const [, m, d] = (h.vars.examen || h.date).split('-');
+  return t
+    .replace(/\{vak\}/gi, h.vars.vak ?? '')
+    .replace(/\{datum\}/gi, `${Number(d)}/${Number(m)}`)
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+/**
+ * Runs every enabled rule once for today. Each firing makes a draft (or, if the rule says so,
+ * the task or note itself) with its own log entry, so it can be undone. Never fires twice for the same moment.
+ */
+export function runRules(s: State, today: string, en = false): { state: State; fired: number } {
+  let next = s;
+  let fired = 0;
+  for (const rule of s.rules) {
+    const hits = ruleHits(rule, next, today);
+    if (!hits.length) continue;
+    for (const h of hits) {
+      const title = fillTemplate(rule.title, h) || rule.name;
+      const due = rule.kind === 'task' && rule.dueIn >= 0 ? addDays(h.date, rule.dueIn) : '';
+      const why = en ? `Workflow "${rule.name}"` : `Workflow „${rule.name}”`;
+      if (rule.direct) {
+        next = rule.kind === 'task'
+          ? createItem(next, 'tasks', makeTask(title, rule.project, due), en ? `${why} added task: "${title}"` : `${why} voegde taak toe: „${title}”`)
+          : createItem(next, 'notes', makeNote(title, ''), en ? `${why} added note: "${title}"` : `${why} maakte notitie: „${title}”`);
+      } else {
+        const d = makeDraft({ kind: rule.kind, title, date: due, time: '', repeat: 'none', project: rule.project, body: '', source: `workflow:${rule.name}` });
+        next = createItem(next, 'drafts', d, en ? `${why} proposed: "${title}"` : `${why} stelde voor: „${title}”`);
+      }
+      fired++;
+    }
+    const runs = [...hits.map((h) => h.key), ...rule.runs].slice(0, 60);
+    next = { ...next, rules: next.rules.map((x) => (x.id === rule.id ? { ...x, runs } : x)) };
+  }
+  return { state: next, fired };
+}
+
+/* ---------- websites ---------- */
+
+export function makeSite(name: string, template: SiteTemplate = 'neon'): Site {
+  const t = nowIso();
+  return {
+    id: newId(), name: name.trim(), template, accent: template === 'neon' ? '#FF4D6D' : template === 'licht' ? '#2F6FEB' : '#D7263D',
+    title: name.trim(), tagline: '', about: '', sections: [], links: [], footer: '', createdAt: t, updatedAt: t,
+  };
+}
+
+/* ---------- agents ---------- */
+
+export const AGENT_AREAS: AgentArea[] = ['tasks', 'agenda', 'notes', 'memory', 'learn', 'habits'];
+export const NO_ACCESS: Record<AgentArea, Access> = { tasks: 'none', agenda: 'none', notes: 'none', memory: 'none', learn: 'none', habits: 'none' };
+
+export function makeAgent(a: Partial<Agent> & { name: string }): Agent {
+  return {
+    id: newId(), name: a.name.trim(), template: a.template ?? 'leeg', instructions: (a.instructions ?? '').trim(),
+    can: { ...NO_ACCESS, ...(a.can ?? {}) }, schedule: a.schedule ?? '', enabled: a.enabled ?? true, lastRun: '', createdAt: nowIso(),
+  };
 }
 
 /* ---------- projects ---------- */
@@ -302,6 +471,75 @@ function cleanDraft(x: unknown): Draft | null {
   };
 }
 
+const isNum = (v: unknown): v is number => typeof v === 'number' && isFinite(v);
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+function cleanHabit(x: unknown): Habit | null {
+  if (!isObj(x) || !isStr(x.id) || !isStr(x.name) || !x.name.trim()) return null;
+  const days = Array.isArray(x.days) ? [...new Set(x.days.filter((d): d is number => Number.isInteger(d) && (d as number) >= 0 && (d as number) <= 6))].sort() : [];
+  return {
+    id: x.id, name: x.name, days: days.length === 7 ? [] : days,
+    done: Array.isArray(x.done) ? [...new Set(x.done.filter((d): d is string => isStr(d) && DAY.test(d)))].sort().reverse().slice(0, 800) : [],
+    archived: x.archived === true, createdAt: isStr(x.createdAt) ? x.createdAt : nowIso(),
+  };
+}
+
+function cleanWhen(w: unknown): RuleWhen | null {
+  if (!isObj(w)) return null;
+  if (w.type === 'daily') return { type: 'daily' };
+  if (w.type === 'weekly' && Number.isInteger(w.weekday) && (w.weekday as number) >= 0 && (w.weekday as number) <= 6) return { type: 'weekly', weekday: w.weekday as number };
+  if (w.type === 'monthly' && Number.isInteger(w.day)) return { type: 'monthly', day: Math.min(28, Math.max(1, w.day as number)) };
+  if (w.type === 'examSoon' && Number.isInteger(w.days)) return { type: 'examSoon', days: Math.min(60, Math.max(0, w.days as number)) };
+  return null;
+}
+
+function cleanRule(x: unknown): Rule | null {
+  if (!isObj(x) || !isStr(x.id) || !isStr(x.name) || !isStr(x.title)) return null;
+  const when = cleanWhen(x.when);
+  if (!when) return null;
+  return {
+    id: x.id, name: x.name, when, kind: x.kind === 'note' ? 'note' : 'task', title: x.title, project: isStr(x.project) ? x.project : '',
+    dueIn: Number.isInteger(x.dueIn) ? Math.min(365, Math.max(-1, x.dueIn as number)) : -1,
+    direct: x.direct === true, enabled: x.enabled !== false,
+    runs: Array.isArray(x.runs) ? x.runs.filter(isStr).slice(0, 60) : [], createdAt: isStr(x.createdAt) ? x.createdAt : nowIso(),
+  };
+}
+
+const HEX = /^#[0-9a-fA-F]{6}$/;
+function cleanSite(x: unknown): Site | null {
+  if (!isObj(x) || !isStr(x.id) || !isStr(x.name)) return null;
+  const str = (v: unknown, max = 4000) => (isStr(v) ? v.slice(0, max) : '');
+  const t = isStr(x.createdAt) ? x.createdAt : nowIso();
+  return {
+    id: x.id, name: str(x.name, 80), template: x.template === 'licht' || x.template === 'krant' ? x.template : 'neon',
+    accent: isStr(x.accent) && HEX.test(x.accent) ? x.accent : '#FF4D6D',
+    title: str(x.title, 120), tagline: str(x.tagline, 200), about: str(x.about),
+    sections: Array.isArray(x.sections) ? x.sections.filter(isObj).slice(0, 12).map((q) => ({ heading: str(q.heading, 120), text: str(q.text) })) : [],
+    links: Array.isArray(x.links) ? x.links.filter(isObj).slice(0, 12).map((q) => ({ label: str(q.label, 80), url: str(q.url, 500) })) : [],
+    footer: str(x.footer, 200), createdAt: t, updatedAt: isStr(x.updatedAt) ? x.updatedAt : t,
+  };
+}
+
+function cleanAgent(x: unknown): Agent | null {
+  if (!isObj(x) || !isStr(x.id) || !isStr(x.name) || !x.name.trim()) return null;
+  const can = { ...NO_ACCESS };
+  if (isObj(x.can)) for (const k of AGENT_AREAS) { const v = x.can[k]; if (v === 'read' || v === 'draft') can[k] = v; }
+  return {
+    id: x.id, name: x.name.slice(0, 60), template: isStr(x.template) ? x.template : 'leeg', instructions: isStr(x.instructions) ? x.instructions.slice(0, 4000) : '',
+    can, schedule: isStr(x.schedule) && /^\d{2}:\d{2}$/.test(x.schedule) ? x.schedule : '', enabled: x.enabled !== false,
+    lastRun: isStr(x.lastRun) && DAY.test(x.lastRun) ? x.lastRun : '', createdAt: isStr(x.createdAt) ? x.createdAt : nowIso(),
+  };
+}
+
+function cleanRemind(x: unknown): Reminders {
+  if (!isObj(x)) return { ...DEFAULT_REMIND };
+  return {
+    on: x.on === true,
+    before: isNum(x.before) && [0, 5, 10, 15, 30, 60].includes(x.before) ? x.before : DEFAULT_REMIND.before,
+    tasks: x.tasks !== false,
+  };
+}
+
 function cleanList<T>(v: unknown, f: (x: unknown) => T | null): T[] {
   if (!Array.isArray(v)) return [];
   return v.map(f).filter((x): x is T => x !== null);
@@ -325,10 +563,15 @@ export function parseState(raw: unknown): State | null {
     projects: cleanList(raw.projects, cleanProject),
     subjects: cleanList(raw.subjects, cleanSubject),
     sessions: cleanList(raw.sessions, cleanSession),
+    habits: cleanList(raw.habits, cleanHabit),
+    rules: cleanList(raw.rules, cleanRule),
+    sites: cleanList(raw.sites, cleanSite),
+    agents: cleanList(raw.agents, cleanAgent),
     log,
     settings: {
       lang: st.lang === 'en' ? 'en' : base.settings.lang,
       name: isStr(st.name) ? st.name.slice(0, 60) : '',
+      remind: cleanRemind(st.remind),
     },
   };
 }
@@ -396,7 +639,8 @@ export function sortEvents(events: CalEvent[]): CalEvent[] {
 /* ---------- cloud sync decisions ---------- */
 
 export function itemCount(s: State): number {
-  return s.tasks.length + s.notes.length + s.events.length + s.memories.length + s.subjects.length + s.sessions.length + s.projects.length;
+  return s.tasks.length + s.notes.length + s.events.length + s.memories.length + s.subjects.length + s.sessions.length + s.projects.length
+    + s.habits.length + s.rules.length + s.sites.length + s.agents.length;
 }
 
 export type FirstSync = 'upload' | 'download' | 'ask' | 'none';

@@ -57,7 +57,7 @@ describe('import and saved data', () => {
   it('round-trips', () => {
     let s = core.emptyState();
     s = core.createItem(s, 'events', core.makeEvent('Les', '2026-11-17', '09:00', 'School'), 'add');
-    s = { ...s, settings: { lang: 'en', name: 'Julien' } };
+    s = { ...s, settings: { ...s.settings, lang: 'en', name: 'Julien' } };
     expect(core.parseState(JSON.parse(JSON.stringify(s)))).toEqual(s);
   });
 
@@ -72,7 +72,7 @@ describe('import and saved data', () => {
     const s = core.parseState({ v: 1, tasks: [{ id: 'a', title: 'ok' }, { title: 'no id' }, 7], notes: 'x', settings: { lang: 'fr', name: 5 } });
     expect(s?.tasks).toEqual([expect.objectContaining({ id: 'a', title: 'ok', done: false, project: '', due: '' })]);
     expect(s?.notes).toEqual([]);
-    expect(s?.settings).toEqual({ lang: 'nl', name: '' });
+    expect(s?.settings).toEqual({ lang: 'nl', name: '', remind: core.DEFAULT_REMIND });
   });
 });
 

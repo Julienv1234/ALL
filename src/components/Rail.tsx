@@ -2,32 +2,23 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef } from 'react';
-import { useT, type Key } from '@/lib/i18n';
+import { useT } from '@/lib/i18n';
 
-const ITEMS: { href: string; key: Key }[] = [
-  { href: '/', key: 'nav.stad' },
-  { href: '/agenda/', key: 'nav.agenda' },
-  { href: '/taken/', key: 'nav.taken' },
-  { href: '/notities/', key: 'nav.notities' },
-  { href: '/leren/', key: 'nav.leren' },
-  { href: '/agents/', key: 'nav.agents' },
-  { href: '/workflows/', key: 'nav.workflows' },
-  { href: '/geheugen/', key: 'nav.geheugen' },
-  { href: '/logboek/', key: 'nav.logboek' },
-  { href: '/instellingen/', key: 'nav.instellingen' },
-];
+import { NAV as ITEMS } from '@/lib/nav';
 
 const isActive = (href: string, norm: string) =>
   href === '/' ? norm === '/' : norm.startsWith(href) || (href === '/taken/' && norm.startsWith('/projecten/'));
 
 /** Phone: the four most used places stay in reach of your thumb, the rest sit under "More". */
 const TABS = ['/', '/agenda/', '/taken/', '/leren/'];
-const MORE_INDEX = 10; // position of the 'more' icon in rail-icons.png
+// rail-icons.png holds the ITEMS icons in the same order, then 'more'. Keep art/rail.py ORDER in step.
+const MORE_INDEX = ITEMS.length;
+const N_ICONS = ITEMS.length + 1;
 
 function Ico({ i, active, size }: { i: number; active: boolean; size: number }) {
   return (
     <span className="ico px" aria-hidden="true"
-      style={{ width: size, height: size, backgroundSize: `${11 * size}px ${2 * size}px`, backgroundPosition: `-${i * size}px -${active ? size : 0}px` }} />
+      style={{ width: size, height: size, backgroundSize: `${N_ICONS * size}px ${2 * size}px`, backgroundPosition: `-${i * size}px -${active ? size : 0}px` }} />
   );
 }
 
@@ -70,7 +61,9 @@ function PhoneTabs({ norm }: { norm: string }) {
               );
             })}
           </div>
-          <button type="button" className="btn" style={{ alignSelf: 'stretch' }} onClick={() => sheet.current?.close()}>{t('common.close')}</button>
+          <button type="button" className="btn" style={{ alignSelf: 'stretch' }}
+            onClick={() => { sheet.current?.close(); window.dispatchEvent(new Event('all:command')); }}>{t('cmd.title')}</button>
+          <button type="button" className="btn ghost" style={{ alignSelf: 'stretch' }} onClick={() => sheet.current?.close()}>{t('common.close')}</button>
         </div>
       </dialog>
     </>
@@ -109,6 +102,8 @@ function DeskRail({ norm }: { norm: string }) {
           );
         })}
       </div>
+      <button type="button" className="rail-cmd" onClick={() => window.dispatchEvent(new Event('all:command'))}
+        aria-label={`Ctrl K: ${t('cmd.title')}`}><kbd>Ctrl</kbd> <kbd>K</kbd></button>
       <img className="railfoot px" src="/img/rail-foot.png" alt="" width={92} height={104} />
     </nav>
   );

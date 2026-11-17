@@ -9,6 +9,11 @@ const paths = {
   download: 'M12 4v11M7 10l5 5 5-5M5 20h14',
   upload: 'M12 20V9M7 14l5-5 5 5M5 4h14',
   search: 'M10.5 17a6.5 6.5 0 110-13 6.5 6.5 0 010 13zM15.5 15.5L20 20',
+  check: 'M5 12.5l4.5 4.5L19 7.5',
+  up: 'M12 19V5M6 11l6-6 6 6',
+  down: 'M12 5v14M6 13l6 6 6-6',
+  play: 'M8 5.5v13l10.5-6.5z',
+  eye: 'M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 15a3 3 0 100-6 3 3 0 000 6z',
 } as const;
 
 export type IconName = keyof typeof paths;

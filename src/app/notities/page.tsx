@@ -10,6 +10,8 @@ export default function NotesPage() {
   const s = useAll();
   const { t, locale } = useT();
   const [selId, setSelId] = useState<string | 'new' | null>(null);
+  // Opened from the command window with #nieuw: start a new note.
+  useEffect(() => { if (location.hash === '#nieuw') setSelId('new'); }, []);
   const [q, setQ] = useState('');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');

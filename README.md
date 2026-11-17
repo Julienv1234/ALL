@@ -2,7 +2,7 @@
 
 Jouw persoonlijke thuisbasis: één app met een dashboard voor je dag, later ook een huis voor agents, workflows en een websitebouwer. De stijl is een neon Japanse stad in pixel-art: elke module, agent en taak is een eigen blok op de kaart.
 
-## Wat er nu in zit (v0.4)
+## Wat er nu in zit (v0.5)
 
 - **Stad**: de kaart met al je blokken. Elke open taak krijgt een eigen blokje met een lantaarn. Er is ook een lijstweergave.
 - **Taken en projecten**: toevoegen, project en deadline, bewerken, afvinken, verwijderen. Projecten krijgen een eigen pagina met doel, voortgang en archief.
@@ -12,7 +12,14 @@ Jouw persoonlijke thuisbasis: één app met een dashboard voor je dag, later ook
 - **Geheugen**: alles wat ALL over jou onthoudt. Jij ziet het, past het aan en wist het.
 - **Logboek**: elke wijziging, met een knop om terug te draaien waar dat kan.
 - **Vraag ALL** begrijpt korte zinnen, zonder AI: "afspraak tandarts donderdag om 14:30", "taak naam kiezen morgen #ALL", "onthoud dat ik maandag vrij ben", "noteer ideeën: lantaarn als logo". Er komt eerst een **concept** in *Wacht op jouw akkoord*; pas als jij goedkeurt wordt het echt. Andere tekst wordt een zoekopdracht.
-- **Briefing** van vandaag, berekend uit je eigen agenda, taken en examens.
+- **Gewoontes**: kleine dingen die je vaak wilt doen, op de dagen die jij kiest. Een vinkje per dag, je reeks, een weekoverzicht en hoe vaak het lukte in de laatste 4 weken.
+- **Workflows** zonder AI: "elke zondag: mijn week plannen", "3 dagen voor een examen: herhalen {vak}", "elke maand: kamer opruimen". Ze zetten een concept klaar (of, als jij dat kiest, meteen een taak of notitie). Elk moment gaat maar één keer af.
+- **Agents-huis**: maak agents uit een sjabloon, beschrijf hun opdracht en kies per deel van ALL wat ze mogen (niets, lezen of concepten maken). Met **Proefdraaien** zie je precies wat een agent te zien krijgt. De **ochtendbriefing-agent** werkt al zonder AI: elke dag op jouw tijd zet hij je briefing klaar als concept. De andere agents wachten op de Claude API (fase 2).
+- **Websitebouwer**: drie sjablonen (Neon, Licht, Krant), je eigen kleur, tekstblokken en knoppen, een live voorbeeld op computer- en telefoonformaat, en downloaden als één HTML-bestand. Alleen web- en mailadressen worden links; al je tekst wordt veilig gemaakt.
+- **Herinneringen**: een melding voor afspraken (zoveel minuten vooraf als jij kiest), voor taken die vandaag af moeten, en als je focustimer klaar is. Werkt zolang ALL open staat, ook op de achtergrond.
+- **Opdrachtvenster**: Ctrl + K (of /) om overal naartoe te gaan, alles te vinden of een zin meteen een concept te maken. `?` toont alle sneltoetsen, `g` + een letter springt naar een pagina.
+- Een korte **rondleiding** voor wie ALL voor het eerst opent.
+- **Briefing** van vandaag, berekend uit je eigen agenda, taken, examens en gewoontes.
 - **Zoeken** in alles, **Nederlands en Engels**, en **back-up** downloaden en terugzetten.
 - Installeerbaar op telefoon en computer (PWA), met een eigen pixel-icoon. Op de telefoon zit het menu onderaan, binnen bereik van je duim; de rest staat onder **Meer**.
 - **Login en cloud** (Supabase), met tweestapsverificatie. Zie [SETUP.md](SETUP.md).
@@ -70,6 +77,10 @@ src/lib/i18n.ts     alle teksten in het Nederlands en Engels
 src/lib/city.ts     posities van de blokken op de kaart
 src/lib/timer.ts    de focustimer (bewaart alleen het startmoment)
 src/lib/ics.ts      agenda-bestanden lezen en schrijven
+src/lib/agents.ts   wat elke agent mag zien, en de ochtendbriefing-agent
+src/lib/site.ts     een website omzetten naar één veilig HTML-bestand
+src/lib/notify.ts   meldingen van je telefoon of computer
+src/lib/nav.ts      het menu en de sneltoetsen
 public/img/         de pixel-art (getekend met de Python-scripts in art/)
 public/fonts/       Silkscreen, alleen voor cijfers in pixelletters (OFL-licentie)
 ```
@@ -86,8 +97,8 @@ public/fonts/       Silkscreen, alleen voor cijfers in pixelletters (OFL-licenti
 | Fase | Wat |
 | --- | --- |
 | 2 | De assistent: een chat die je taken, notities en agenda kent. Alles met goedkeuring. |
-| 3 | Mail (Gmail, eerst alleen lezen) en workflows. |
-| 4 | Agents-huis: eigen agents, schema's, ochtendbriefing. |
-| 5 | Websitebouwer. |
-| 6 | Levensdomeinen: geld, gezondheid, werk. Leren is er al (zonder gevoelige gegevens); geld en gezondheid wachten tot login, back-ups en jullie toestemming geregeld zijn. |
+| 3 | Mail (Gmail, eerst alleen lezen). Workflows zonder mail zijn er al. |
+| 4 | Agents met AI laten samenwerken. Het agents-huis, de rechten en de ochtendbriefing zonder AI zijn er al. |
+| 5 | Websites ontwerpen met AI en publiceren vanuit ALL. Sjablonen, voorbeeld en downloaden zijn er al. |
+| 6 | Levensdomeinen: geld, gezondheid, werk. Leren en gewoontes zijn er al (zonder gevoelige gegevens); geld en gezondheid wachten tot login, back-ups en jullie toestemming geregeld zijn. |
 | 7 | Chat-koppelingen (Telegram of Slack) en verfijnen. |

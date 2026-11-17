@@ -8,7 +8,8 @@ import { useSyncExternalStore } from 'react';
 import * as core from './core';
 import { parseIcs, toIcs, type IcsResult } from './ics';
 import { parseCommand } from './parse';
-import type { CalEvent, Collection, Draft, Item, Memory, Note, Project, Session, Settings, State, Subject, Task } from './types';
+import { runAgents } from './agents';
+import type { Agent, CalEvent, Collection, Draft, Habit, Item, Memory, Note, Project, Rule, Session, Settings, Site, State, Subject, Task } from './types';
 
 const KEY = 'all.v1';
 const SERVER = core.emptyState();
@@ -179,6 +180,76 @@ export const actions = {
     commit(core.deleteItem(state, 'sessions', x.id, label('Studiesessie verwijderd', 'Study session deleted')));
   },
 
+  addHabit(name: string, days: number[] = []) {
+    const x = core.makeHabit(name, days);
+    commit(core.createItem(state, 'habits', x, label(`Gewoonte toegevoegd: ${q(x.name)}`, `Habit added: ${q(x.name)}`)));
+    return x;
+  },
+  updateHabit(x: Habit) {
+    commit(core.updateItem(state, 'habits', x, label(`Gewoonte bijgewerkt: ${q(x.name)}`, `Habit updated: ${q(x.name)}`)));
+  },
+  toggleHabit(x: Habit, day: string) {
+    const next = core.toggleHabitDay(x, day);
+    const on = next.done.includes(day);
+    commit(core.updateItem(state, 'habits', next, on
+      ? label(`Gewoonte gedaan: ${q(x.name)} (${day})`, `Habit done: ${q(x.name)} (${day})`)
+      : label(`Gewoonte niet meer afgevinkt: ${q(x.name)} (${day})`, `Habit unchecked: ${q(x.name)} (${day})`)));
+  },
+  deleteHabit(x: Habit) {
+    commit(core.deleteItem(state, 'habits', x.id, label(`Gewoonte verwijderd: ${q(x.name)}`, `Habit deleted: ${q(x.name)}`)));
+  },
+
+  addRule(r: Parameters<typeof core.makeRule>[0]) {
+    const x = core.makeRule(r);
+    commit(core.createItem(state, 'rules', x, label(`Workflow gemaakt: ${q(x.name)}`, `Workflow created: ${q(x.name)}`)));
+    return x;
+  },
+  updateRule(x: Rule) {
+    commit(core.updateItem(state, 'rules', x, label(`Workflow bijgewerkt: ${q(x.name)}`, `Workflow updated: ${q(x.name)}`)));
+  },
+  deleteRule(x: Rule) {
+    commit(core.deleteItem(state, 'rules', x.id, label(`Workflow verwijderd: ${q(x.name)}`, `Workflow deleted: ${q(x.name)}`)));
+  },
+  /** Lets every workflow fire for today. Returns how many drafts or items it made. */
+  runRules(): number {
+    ensureLoaded();
+    const out = core.runRules(state, core.isoDay(), state.settings.lang === 'en');
+    if (out.fired) commit(out.state);
+    return out.fired;
+  },
+
+  /** Lets scheduled agents that need no AI do their daily job. Returns how many ran. */
+  runAgents(): number {
+    ensureLoaded();
+    const out = runAgents(state, new Date(), state.settings.lang);
+    if (out.ran) commit(out.state);
+    return out.ran;
+  },
+
+  addSite(name: string, template: Site['template']) {
+    const x = core.makeSite(name, template);
+    commit(core.createItem(state, 'sites', x, label(`Website gemaakt: ${q(x.name)}`, `Website created: ${q(x.name)}`)));
+    return x;
+  },
+  updateSite(x: Site) {
+    commit(core.updateItem(state, 'sites', { ...x, updatedAt: core.nowIso() }, label(`Website opgeslagen: ${q(x.name)}`, `Website saved: ${q(x.name)}`)));
+  },
+  deleteSite(x: Site) {
+    commit(core.deleteItem(state, 'sites', x.id, label(`Website verwijderd: ${q(x.name)}`, `Website deleted: ${q(x.name)}`)));
+  },
+
+  addAgent(a: Parameters<typeof core.makeAgent>[0]) {
+    const x = core.makeAgent(a);
+    commit(core.createItem(state, 'agents', x, label(`Agent gemaakt: ${q(x.name)}`, `Agent created: ${q(x.name)}`)));
+    return x;
+  },
+  updateAgent(x: Agent) {
+    commit(core.updateItem(state, 'agents', x, label(`Agent bijgewerkt: ${q(x.name)}`, `Agent updated: ${q(x.name)}`)));
+  },
+  deleteAgent(x: Agent) {
+    commit(core.deleteItem(state, 'agents', x.id, label(`Agent verwijderd: ${q(x.name)}`, `Agent deleted: ${q(x.name)}`)));
+  },
+
   addNote(title: string, body: string) {
     const n = core.makeNote(title, body);
     commit(core.createItem(state, 'notes', n, label(`Notitie gemaakt: ${q(n.title)}`, `Note created: ${q(n.title)}`)));
@@ -236,6 +307,11 @@ export const actions = {
     const d = core.makeDraft({ ...p, source: text.trim() });
     commit(core.createItem(state, 'drafts', d, label(`Concept klaargezet: ${q(d.title)}`, `Draft prepared: ${q(d.title)}`)));
     return d;
+  },
+  /** A draft an agent made when you asked it to. Counts as its run for today, so the schedule does not repeat it. */
+  agentDraft(a: Agent, d: Draft) {
+    const next = core.createItem(state, 'drafts', d, label(`Agent ${q(a.name)} zette klaar: ${q(d.title)}`, `Agent ${q(a.name)} prepared: ${q(d.title)}`));
+    commit({ ...next, agents: next.agents.map((x) => (x.id === a.id ? { ...x, lastRun: core.isoDay() } : x)) });
   },
   updateDraft(d: Draft) {
     commit(core.updateItem(state, 'drafts', d, label(`Concept aangepast: ${q(d.title)}`, `Draft edited: ${q(d.title)}`)));

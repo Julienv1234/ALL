@@ -29,6 +29,13 @@ const seed = {
     { id: 's2', name: 'Frans', goal: '', exam: '', weeklyMinutes: 0, archived: false, createdAt: now },
     { id: 's3', name: 'Oud vak', goal: '', exam: '', weeklyMinutes: 0, archived: true, createdAt: now }],
   sessions: [{ id: 'x1', subjectId: 's1', date: day(0), minutes: 25, note: '', createdAt: now }, { id: 'x2', subjectId: 's2', date: day(-1), minutes: 40, note: '', createdAt: now }],
+  habits: [{ id: 'h1', name: 'Lezen', days: [], done: [day(-1), day(-2)], archived: false, createdAt: now },
+    { id: 'h2', name: 'Gitaar', days: [5], done: [], archived: false, createdAt: now }],
+  rules: [{ id: 'r1', name: 'Week plannen', when: { type: 'weekly', weekday: 6 }, kind: 'task', title: 'Mijn week plannen', project: '', dueIn: 0, direct: false, enabled: true, runs: [], createdAt: now },
+    { id: 'r2', name: 'Uit', when: { type: 'daily' }, kind: 'note', title: 'x', project: '', dueIn: -1, direct: true, enabled: false, runs: [], createdAt: now }],
+  sites: [{ id: 'w1', name: 'Mijn band', template: 'neon', accent: '#FF4D6D', title: 'De Neonkatten', tagline: 'Garagerock', about: 'Wij spelen luid.', sections: [{ heading: 'Optredens', text: 'Zaterdag.' }], links: [{ label: 'Luister', url: 'javascript:x' }], footer: '', createdAt: now, updatedAt: now }],
+  agents: [{ id: 'a1', name: 'Ochtendbriefing', template: 'briefing', instructions: 'Maak een briefing.', can: { tasks: 'read', agenda: 'read', notes: 'none', memory: 'none', learn: 'read', habits: 'read' }, schedule: '23:59', enabled: true, lastRun: '', createdAt: now },
+    { id: 'a2', name: 'Studiecoach', template: 'coach', instructions: '', can: { tasks: 'draft', agenda: 'none', notes: 'none', memory: 'none', learn: 'read', habits: 'none' }, schedule: '', enabled: false, lastRun: '', createdAt: now }],
   log: [{ id: 'l1', at: now, text: 'Taak toegevoegd: “Naam kiezen”', collection: 'tasks', undo: { type: 'remove', collection: 'tasks', id: 't1' } }],
   settings: { lang: 'nl', name: 'Julien' },
 };
@@ -52,10 +59,11 @@ async function scan(page, label) {
 for (const [vw, vh, tag] of [[1440, 1000, 'desktop'], [375, 800, 'phone']]) {
   for (const lang of ['nl', 'en']) {
     const ctx = await browser.newContext({ viewport: { width: vw, height: vh } });
+    await ctx.addInitScript(() => localStorage.setItem('all.toured', '1'));
     const page = await ctx.newPage();
     await page.goto(BASE + '/');
     await page.evaluate((s) => localStorage.setItem('all.v1', s), JSON.stringify({ ...seed, settings: { ...seed.settings, lang } }));
-    for (const p of ['/', '/taken/', '/agenda/', '/leren/', '/projecten/', '/notities/', '/geheugen/', '/logboek/', '/agents/', '/workflows/', '/instellingen/', '/zoeken/?q=a']) {
+    for (const p of ['/', '/taken/', '/agenda/', '/leren/', '/projecten/', '/notities/', '/geheugen/', '/logboek/', '/gewoontes/', '/agents/', '/workflows/', '/websites/', '/instellingen/', '/zoeken/?q=a']) {
       await page.goto(BASE + p);
       await scan(page, `${tag}/${lang}${p}`);
     }
@@ -85,8 +93,48 @@ for (const [vw, vh, tag] of [[1440, 1000, 'desktop'], [375, 800, 'phone']]) {
     await page.goto(BASE + '/notities/');
     await page.getByRole('button', { name: /Ideeën/ }).click();
     await scan(page, `${tag}/${lang}/notities editor`);
+    await page.goto(BASE + '/gewoontes/');
+    await page.getByRole('button', { name: lang === 'nl' ? 'Bewerken: Lezen' : 'Edit: Lezen' }).click();
+    await scan(page, `${tag}/${lang}/gewoontes edit`);
+    await page.goto(BASE + '/workflows/');
+    await page.getByRole('button', { name: lang === 'nl' ? 'Bewerken: Week plannen' : 'Edit: Week plannen' }).click();
+    await scan(page, `${tag}/${lang}/workflows edit`);
+    await page.goto(BASE + '/websites/');
+    await page.getByRole('button', { name: lang === 'nl' ? 'Openen: Mijn band' : 'Open: Mijn band' }).click();
+    await page.getByRole('region', { name: 'Mijn band' }).waitFor();
+    await scan(page, `${tag}/${lang}/websites editor`);
+    await page.goto(BASE + '/agents/');
+    await page.getByRole('button', { name: lang === 'nl' ? 'Bewerken: Ochtendbriefing' : 'Edit: Ochtendbriefing' }).click();
+    await page.getByRole('button', { name: lang === 'nl' ? /Proefdraaien/ : /Try it/ }).first().click();
+    await scan(page, `${tag}/${lang}/agents edit + try`);
+    await page.locator('.agent-tpl').first().click();
+    await scan(page, `${tag}/${lang}/agents new form`);
+    await page.evaluate(() => window.dispatchEvent(new Event('all:tour')));
+    await page.getByRole('dialog').first().waitFor();
+    await scan(page, `${tag}/${lang}/ tour`);
+    await page.keyboard.press('Escape');
+    await page.evaluate(() => window.dispatchEvent(new Event('all:command')));
+    await page.getByRole('combobox').fill('le');
+    await scan(page, `${tag}/${lang}/ command window`);
+    await page.keyboard.press('Escape');
+    if (tag === 'desktop') {
+      await page.keyboard.press('?');
+      await scan(page, `${tag}/${lang}/ shortcuts`);
+      await page.keyboard.press('Escape');
+    }
     await ctx.close();
   }
+}
+// First visit on an empty device: the welcome invitation and the tour itself.
+{
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await ctx.newPage();
+  await page.goto(BASE + '/');
+  await page.getByRole('complementary').filter({ hasText: 'Welkom bij ALL' }).waitFor();
+  await scan(page, 'phone/nl/ first visit invitation');
+  await page.getByRole('button', { name: 'Rondleiding starten' }).click();
+  await scan(page, 'phone/nl/ first visit tour');
+  await ctx.close();
 }
 await browser.close();
 web.kill();

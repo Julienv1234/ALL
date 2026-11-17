@@ -2,7 +2,7 @@
 import meta from '../../public/img/islands-meta.json';
 
 export type Asset = keyof typeof meta;
-export type ModuleId = 'hub' | 'leren' | 'assistent' | 'mail' | 'briefing' | 'agenda' | 'taken' | 'notities' | 'onderzoeker' | 'web' | 'geld' | 'gezondheid';
+export type ModuleId = 'hub' | 'leren' | 'gewoontes' | 'workflows' | 'assistent' | 'mail' | 'briefing' | 'agenda' | 'taken' | 'notities' | 'onderzoeker' | 'web' | 'geld' | 'gezondheid';
 
 export interface ModuleDef {
   id: ModuleId;
@@ -16,15 +16,16 @@ export const MODULES: ModuleDef[] = [
   { id: 'hub', asset: 'hub', uv: [0, 0], href: '/logboek/' },
   { id: 'assistent', asset: 'assistent', uv: [-11.5, 0] },
   { id: 'mail', asset: 'mail', uv: [-21, 0], phase: 3 },
-  { id: 'briefing', asset: 'briefing', uv: [0, -11.5] },
+  { id: 'briefing', asset: 'briefing', uv: [0, -11.5], href: '/agents/' },
   { id: 'agenda', asset: 'agenda', uv: [0, -21], href: '/agenda/' },
   { id: 'taken', asset: 'taken', uv: [0, 11], href: '/taken/' },
   { id: 'notities', asset: 'notities', uv: [11, 0], href: '/notities/' },
   { id: 'onderzoeker', asset: 'onderzoeker', uv: [11, -11], phase: 4 },
   { id: 'leren', asset: 'leren', uv: [-11.5, -11.5], href: '/leren/' },
-  { id: 'web', asset: 'perceel', uv: [11, 11], phase: 5 },
+  { id: 'web', asset: 'web', uv: [11, 11], href: '/websites/' },
+  { id: 'workflows', asset: 'werkplaats', uv: [21, 0], href: '/workflows/' },
+  { id: 'gewoontes', asset: 'gewoontes', uv: [11, 21], href: '/gewoontes/' },
   { id: 'geld', asset: 'perceel', uv: [21, 11], phase: 6 },
-  { id: 'gezondheid', asset: 'perceel', uv: [11, 21], phase: 6 },
 ];
 
 /** Where task islets go, nearest to the Taken block first. */
@@ -42,10 +43,11 @@ export const ROUTES: [ModuleId, ModuleId, RouteKind][] = [
   ['mail', 'assistent', 'later'],
   ['assistent', 'hub', 'live'],
   ['onderzoeker', 'notities', 'later'],
-  ['taken', 'web', 'later'],
-  ['notities', 'web', 'later'],
+  ['notities', 'web', 'live'],
+  ['notities', 'workflows', 'live'],
+  ['web', 'gewoontes', 'live'],
   ['web', 'geld', 'later'],
-  ['web', 'gezondheid', 'later'],
+  ['workflows', 'geld', 'later'],
 ];
 
 export const MAP_W = 900;

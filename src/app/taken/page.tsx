@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Icon from '@/components/Icon';
 import TaskRow from '@/components/TaskRow';
 import TaskTabs from '@/components/TaskTabs';
@@ -16,6 +16,9 @@ export default function TasksPage() {
   const [project, setProject] = useState('');
   const [due, setDue] = useState('');
   const [filter, setFilter] = useState('');
+  const newTitle = useRef<HTMLInputElement>(null);
+  // Opened from the command window with #nieuw: start typing a new task straight away.
+  useEffect(() => { if (location.hash === '#nieuw') newTitle.current?.focus(); }, []);
 
   const f = filter.trim().toLowerCase();
   const match = (x: Task) => !f || x.title.toLowerCase().includes(f) || x.project.toLowerCase().includes(f);
@@ -38,7 +41,7 @@ export default function TasksPage() {
         <h2 className="h2">{t('tasks.new')}</h2>
         <div className="wrap" style={{ gap: 12, alignItems: 'flex-end' }}>
           <label className="field" style={{ flex: '3 1 240px' }}>{t('common.title')}
-            <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} />
+            <input ref={newTitle} className="input" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} />
           </label>
           <label className="field" style={{ flex: '1 1 140px' }}>{t('tasks.project')}
             <input className="input" list="projects" value={project} onChange={(e) => setProject(e.target.value)} maxLength={60} />

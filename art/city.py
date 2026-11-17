@@ -368,6 +368,132 @@ def school():
     return I
 
 
+def dojo():
+    """Gewoontes: a small dojo with a torii gate, raked gravel and stepping stones."""
+    I = Pix(5, seed=131)
+    I.base('#FFB86B')
+    # raked gravel garden
+    I.rt(0.7, 3.0, 4.3, 4.3, 0, '#B9B2A0')
+    for k in range(5):
+        y = 3.15 + k * 0.24
+        I.line((0.8, y, 0), (4.2, y, 0), '#A39C8A')
+    for (x, y) in ((1.2, 3.6), (1.9, 3.9), (2.7, 3.7), (3.4, 4.0)):
+        I.rt(x, y, x + 0.35, y + 0.28, 0.02, '#6E6A82')
+    # dojo hall
+    I.box(1.0, 0.7, 0, 3.0, 2.0, 1.25, '#EADFC8')
+    for x in (1.05, 1.8, 2.55, 3.3):
+        I.rl(x + 0.08, x + 0.62, 2.7, 0.12, 1.05, '#F7EFD9', 0)
+        I.line((x + 0.35, 2.7, 0.12), (x + 0.35, 2.7, 1.05), '#B8A88A')
+    I.rl(2.25, 2.75, 2.7, 0, 1.05, '#FFE2A8', 90)
+    I.wins_r(4.0, 0.9, 2.5, 0.3, 1.05, 0.5)
+    I.box(0.85, 0.55, 1.25, 3.3, 2.3, 0.12, '#4A3A3A', edge=False)
+    I.roof(1.0, 0.7, 1.37, 3.0, 2.0, '#3A3150', over=0.3, h=0.6)
+    I.sign_l(1.25, 2.1, 2.7, 1.08, 1.24, '#FFB86B')
+    # torii gate in front of the garden path
+    for x in (1.75, 3.05):
+        I.box(x, 4.35, 0, 0.14, 0.14, 1.45, '#E0443E', edge=False)
+    I.box(1.5, 4.3, 1.45, 1.95, 0.22, 0.13, '#E0443E')
+    I.box(1.42, 4.27, 1.58, 2.11, 0.28, 0.09, '#2A2030', edge=False)
+    I.line((1.8, 4.42, 1.15), (3.1, 4.42, 1.15), '#C0383A')
+    I.dot((2.45, 4.42, 1.32), '#FFE2A8', 0, 200)
+    # stone lantern and a small pine
+    I.box(0.9, 4.1, 0, 0.18, 0.18, 0.35, '#8C8AA0', edge=False)
+    I.box(0.82, 4.02, 0.35, 0.34, 0.34, 0.16, '#A8A6B8', edge=False)
+    I.dot((0.99, 4.2, 0.42), '#FFD27A', 1, 255)
+    I.box(0.8, 4.0, 0.51, 0.38, 0.38, 0.06, '#6E6A82', edge=False)
+    I.tree(4.1, 1.0, 0.8)
+    return I
+
+
+def werkplaats():
+    """Workflows: a workshop with a conveyor belt carrying parcels and a big gear sign."""
+    I = Pix(5, seed=141)
+    I.base('#B66BFF')
+    I.box(0.7, 0.7, 0, 2.6, 2.1, 1.7, '#4A4462')
+    I.wins_r(3.3, 0.9, 2.6, 0.35, 1.5, 0.75)
+    I.rl(0.95, 1.95, 2.8, 0, 1.0, '#2A2438')
+    for z in (0.2, 0.4, 0.6, 0.8):
+        I.line((0.95, 2.8, z), (1.95, 2.8, z), '#3A3450')
+    I.rl(2.2, 3.1, 2.8, 0.7, 1.25, '#FFE9A8', 70)
+    # saw-tooth roof
+    for k in range(3):
+        x = 0.7 + k * 0.87
+        I.poly([(x, 0.7, 1.7), (x + 0.87, 0.7, 1.7), (x + 0.87, 2.8, 1.7), (x, 2.8, 1.7)], '#3A3450')
+        I.rl(x, x + 0.87, 2.8, 1.7, 1.95, '#5A5478')
+        I.line((x + 0.87, 2.8, 1.7), (x + 0.87, 2.8, 2.1), '#7A7490')
+        I.line((x, 2.8, 2.1), (x + 0.87, 2.8, 1.7), '#8C86A6')
+    # chimney with a little glow
+    I.box(2.7, 0.9, 1.7, 0.3, 0.3, 1.2, '#5A4A3E')
+    I.dot((2.85, 1.05, 2.95), ORA, 1, 200)
+    # big gear sign on the roof
+    gx, gy = I.p(1.6, 1.4, 2.75)
+    for a in range(8):
+        import math
+        ang = a * math.pi / 4
+        tx, ty = gx + round(7 * math.cos(ang)), gy + round(7 * math.sin(ang))
+        I.d.rectangle([tx - 1, ty - 1, tx + 1, ty + 1], fill=I.col(PURP))
+        I.nd.rectangle([tx - 1, ty - 1, tx + 1, ty + 1], fill=I.col(PURP, 200))
+    I.d.ellipse([gx - 6, gy - 6, gx + 6, gy + 6], fill=I.col(PURP))
+    I.nd.ellipse([gx - 6, gy - 6, gx + 6, gy + 6], fill=I.col(PURP, 160))
+    I.d.ellipse([gx - 2, gy - 2, gx + 2, gy + 2], fill=I.col('#1C1828'))
+    I.line((1.6, 1.4, 1.7), (1.6, 1.4, 2.3), '#6E6A82')
+    # conveyor belt from the door to a loading bay
+    I.box(1.0, 3.2, 0.3, 3.2, 0.5, 0.12, '#2A2438')
+    I.rt(1.0, 3.2, 4.2, 3.7, 0.42, '#55516A')
+    for k in range(9):
+        x = 1.1 + k * 0.35
+        I.line((x, 3.2, 0.42), (x, 3.7, 0.42), '#6E6A82')
+    for x in (1.2, 4.0):
+        I.line((x, 3.45, 0), (x, 3.45, 0.3), '#6E6A82')
+    for (x, c) in ((1.5, '#C99A6A'), (2.4, '#C99A6A'), (3.3, '#D9AE7E')):
+        I.box(x, 3.28, 0.42, 0.42, 0.36, 0.32, c)
+        I.line((x + 0.21, 3.64, 0.42), (x + 0.21, 3.64, 0.74), '#8E6242')
+    # status light at the end of the belt
+    I.line((4.3, 3.9, 0), (4.3, 3.9, 0.9), '#8C8AA0')
+    I.dot((4.3, 3.9, 0.95), GREEN, 1, 255)
+    return I
+
+
+def webstudio():
+    """Website builder: a studio with a giant billboard screen showing a page being built."""
+    I = Pix(6, seed=151)
+    I.base('#4AA8FF')
+    I.box(0.8, 0.8, 0, 3.4, 2.4, 2.2, '#343A5C')
+    I.wins_r(4.2, 1.0, 3.0, 0.3, 1.9, 0.7)
+    shop_glass = '#9FE8FF'
+    I.rl(1.0, 4.0, 3.2, 0.1, 0.95, shop_glass, 110)
+    I.rl(2.3, 2.7, 3.2, 0.1, 0.95, '#2A3048')
+    I.sign_l(1.1, 2.15, 3.2, 1.1, 1.4, BLUE)
+    # billboard frame on the roof
+    for x in (1.3, 3.6):
+        I.line((x, 2.0, 2.2), (x, 2.0, 2.6), '#8C8AA0')
+    I.rl(0.9, 4.1, 2.0, 2.6, 4.4, '#0D0B16')
+    I.rl(1.0, 4.0, 2.0, 2.7, 4.3, '#14243A', 60)
+    # the page on the screen: header bar, hero block, three cards, text lines
+    I.rl(1.1, 3.9, 2.0, 4.0, 4.2, MAG, 255)
+    I.rl(1.1, 2.5, 2.0, 3.35, 3.85, CYAN, 230)
+    for z in (3.75, 3.6, 3.45):
+        I.line((2.65, 2.0, z), (3.85, 2.0, z), '#BFF7FF')
+    for k in range(3):
+        x = 1.1 + k * 0.95
+        I.rl(x, x + 0.8, 2.0, 2.8, 3.2, '#3A5A8A', 140)
+        I.line((x + 0.1, 2.0, 3.05), (x + 0.6, 2.0, 3.05), '#BFF7FF')
+    # cursor
+    cx, cy = I.p(3.5, 2.0, 3.0)
+    for k in range(4):
+        I.d.line([cx, cy + k, cx + k, cy + k], fill=I.col('#FFFFFF'))
+    I.nd.point((cx, cy), fill=I.col('#FFFFFF', 255))
+    # plaza: a bench, a planter and a scooter
+    I.box(4.5, 4.0, 0.25, 0.25, 0.9, 0.08, '#8E6242', edge=False)
+    I.tree(1.2, 4.6, 0.7)
+    I.tree(4.9, 1.2, 0.6)
+    # neon kiosk
+    I.box(2.6, 4.2, 0, 0.7, 0.55, 0.75, '#2A3048')
+    I.rl(2.65, 3.25, 4.75, 0.35, 0.65, CYAN, 200)
+    I.box(2.55, 4.15, 0.75, 0.8, 0.65, 0.08, MAG, edge=False)
+    return I
+
+
 def skyline(path):
     r = random.Random(7)
     W, H = 480, 300
@@ -414,7 +540,8 @@ def skyline(path):
 
 
 ISLANDS = [('hub', hub), ('assistent', assistent), ('briefing', briefing), ('onderzoeker', onderzoeker), ('mail', mail),
-           ('agenda', agenda), ('taken', taken), ('notities', notities), ('perceel', perceel), ('taak', taak), ('leren', school)]
+           ('agenda', agenda), ('taken', taken), ('notities', notities), ('perceel', perceel), ('taak', taak), ('leren', school),
+           ('gewoontes', dojo), ('werkplaats', werkplaats), ('web', webstudio)]
 
 if __name__ == '__main__':
     os.makedirs(OUT, exist_ok=True)

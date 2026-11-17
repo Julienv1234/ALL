@@ -13,18 +13,57 @@ await new Promise((r) => setTimeout(r, 800));
 const results = [];
 const step = async (name, fn) => {
   try { await fn(); results.push(['ok', name]); }
-  catch (e) { results.push(['FAIL', name + ': ' + String(e.message || e).split('\n')[0]]); }
+  catch (e) {
+    const lines = String(e.message || e).split('\n');
+    const what = lines.find((l) => l.includes('waiting for')) || '';
+    results.push(['FAIL', name + ': ' + lines[0] + (what ? ' [' + what.trim() + ']' : '')]);
+  }
 };
 const expect = (cond, msg) => { if (!cond) throw new Error(msg); };
 
 const browser = await chromium.launch({ executablePath: CHROME, args: ['--no-sandbox', '--no-proxy-server'] });
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 }, acceptDownloads: true });
+await ctx.grantPermissions(['notifications'], { origin: BASE });
+// Record system notifications instead of showing them.
+await ctx.addInitScript(() => {
+  if (window.top !== window) return; // not inside the website preview frame
+  const Real = window.Notification;
+  window.__notes = JSON.parse(sessionStorage.getItem('__notes') || '[]');
+  class Rec {
+    constructor(title, o) { window.__notes.push({ title, body: (o && o.body) || '' }); sessionStorage.setItem('__notes', JSON.stringify(window.__notes)); }
+    static get permission() { return Real.permission; }
+    static requestPermission() { return Real.requestPermission(); }
+    close() {}
+  }
+  window.Notification = Rec;
+});
 const page = await ctx.newPage();
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
 fs.mkdirSync('test-results', { recursive: true });
 const shot = (n) => page.screenshot({ path: `test-results/${n}.png`, fullPage: true });
+
+await step('first visit: a quiet invitation, the tour goes back and forth, skipping hides it for good', async () => {
+  await page.goto(BASE + '/');
+  const invite = page.getByRole('complementary', { name: 'Welkom bij ALL' });
+  await invite.waitFor();
+  await invite.getByRole('button', { name: 'Rondleiding starten' }).click();
+  const tour = page.getByRole('dialog', { name: 'Welkom bij ALL' });
+  await tour.waitFor();
+  await shot('00-tour');
+  await page.getByRole('button', { name: 'Volgende' }).click();
+  await page.getByRole('dialog', { name: 'Je stad' }).waitFor();
+  await page.getByRole('button', { name: 'Vorige' }).click();
+  await tour.waitFor();
+  await page.getByRole('button', { name: 'Overslaan' }).click();
+  await tour.waitFor({ state: 'hidden' });
+  expect(await invite.count() === 0, 'invitation still there');
+  await page.reload();
+  await page.getByRole('heading', { level: 1 }).waitFor();
+  await page.waitForTimeout(300);
+  expect(await invite.count() === 0 && !(await tour.isVisible()), 'tour came back');
+});
 
 await step('home loads with empty city', async () => {
   await page.goto(BASE + '/');
@@ -172,8 +211,8 @@ await step('city with tasks, list view, zoom', async () => {
   await page.getByRole('button', { name: 'Terug naar thuisbasis' }).click();
   await page.getByRole('button', { name: 'Lijst' }).click();
   await page.getByRole('heading', { name: 'Alles op een rij' }).waitFor();
-  await page.getByRole('button', { name: /Websitebouwer/ }).click();
-  await page.getByText('Gepland voor fase 5.').waitFor();
+  await page.getByRole('button', { name: /Geld/ }).click();
+  await page.getByText('Gepland voor fase 6.').waitFor();
   await shot('08-home-list');
 });
 
@@ -319,17 +358,218 @@ await step('learning: subject, focus timer keeps running across pages and saves 
   await page.getByText('Examen Wiskunde over 5 dagen. Deze week: 45 van 120 min.').waitFor();
 });
 
-await step('later screens render', async () => {
-  for (const p of ['/agents/', '/workflows/']) {
-    await page.goto(BASE + p);
-    await page.getByRole('heading', { name: 'Komt later' }).waitFor();
+await step('habits: add, tick today, streak, not-planned days, briefing, edit and archive', async () => {
+  await page.goto(BASE + '/gewoontes/');
+  await page.getByText('Nog geen gewoontes').waitFor();
+  const form = page.locator('form', { has: page.getByRole('heading', { name: 'Nieuwe gewoonte' }) });
+  await form.getByLabel('Naam', { exact: true }).fill('Lezen');
+  await form.getByRole('button', { name: 'Toevoegen' }).click();
+  // a habit that is never planned today: only on the weekday after today
+  const tomorrowIdx = (new Date().getDay() + 7) % 7; // JS: 0 = Sunday; ours: 0 = Monday, so tomorrow = this
+  const names = [/^ma$/i, /^di$/i, /^wo$/i, /^do$/i, /^vr$/i, /^za$/i, /^zo$/i];
+  await form.getByLabel('Naam', { exact: true }).fill('Gitaar');
+  await form.getByRole('button', { name: names[tomorrowIdx] }).click();
+  expect(await form.getByRole('button', { name: 'Elke dag' }).getAttribute('aria-pressed') === 'false', 'every day still pressed');
+  await form.getByRole('button', { name: 'Toevoegen' }).click();
+  await page.getByText('Niet gepland vandaag: Gitaar').waitFor();
+  await page.getByText('0 / 1 gedaan').waitFor();
+  const check = page.getByRole('button', { name: 'Lezen: vandaag gedaan' });
+  await check.click();
+  expect(await check.getAttribute('aria-pressed') === 'true', 'not ticked');
+  await page.getByText('1 / 1 gedaan').waitFor();
+  const table = page.getByRole('table');
+  expect(await table.getByRole('row', { name: /Lezen/ }).getByRole('button', { pressed: true }).count() === 1, 'week grid out of step');
+  await shot('16-gewoontes');
+  await page.goto(BASE + '/');
+  await page.getByText('Je gewoonte van vandaag is gedaan: Lezen.').waitFor();
+  await page.goto(BASE + '/gewoontes/');
+  await page.getByRole('button', { name: 'Bewerken: Gitaar' }).click();
+  const ed = page.locator('form', { has: page.getByRole('button', { name: 'Archiveren' }) });
+  await ed.getByLabel('Naam', { exact: true }).fill('Gitaar oefenen');
+  await ed.getByRole('button', { name: 'Opslaan' }).click();
+  await page.getByText('Niet gepland vandaag: Gitaar oefenen').waitFor();
+  await page.getByRole('button', { name: 'Bewerken: Gitaar oefenen' }).click();
+  await page.getByRole('button', { name: 'Archiveren' }).click();
+  await page.getByRole('region', { name: 'Gearchiveerd' }).getByText('Gitaar oefenen').waitFor();
+});
+
+await step('workflows: exam rule makes a draft once, a direct weekly rule adds a note, switching off', async () => {
+  await page.goto(BASE + '/workflows/');
+  await page.getByText('Nog geen workflows').waitFor();
+  await page.getByRole('button', { name: 'Examen nadert: herhalen' }).click();
+  const form = page.locator('form', { has: page.getByRole('button', { name: 'Workflow maken' }) });
+  await form.getByLabel('Dagen ervoor').fill('7');
+  await form.getByText('7 dagen voor een examen zet ALL een taak klaar als concept: “Herhalen {vak} voor {datum}”').waitFor();
+  await form.getByRole('button', { name: 'Workflow maken' }).click();
+  await page.getByText('Een workflow zette iets voor je klaar.').waitFor();
+  await page.getByRole('button', { name: 'Nu nakijken' }).click();
+  await page.getByText('Niets te doen: alles is al klaargezet voor vandaag.').waitFor();
+  // a weekly rule for today's weekday that adds a note directly
+  const todayIdx = (new Date().getDay() + 6) % 7;
+  await form.getByLabel('Naam', { exact: true }).fill('Terugblik');
+  await form.getByRole('combobox', { name: /^Op/ }).selectOption(String(todayIdx));
+  await form.getByRole('combobox', { name: /^Dan/ }).selectOption('note');
+  await form.getByLabel('Titel').fill('Wat ging goed op {datum}');
+  await form.getByLabel('Meteen toevoegen, zonder concept').check();
+  await form.getByRole('button', { name: 'Workflow maken' }).click();
+  await page.getByText('Een workflow zette iets voor je klaar.').first().waitFor();
+  await shot('17-workflows');
+  const examRule = page.getByRole('article', { name: 'Examen nadert: herhalen' });
+  await examRule.getByRole('button', { name: /Actief/ }).click();
+  expect(await examRule.getByRole('button', { name: /Actief/ }).getAttribute('aria-pressed') === 'false', 'rule did not switch off');
+  const [, m, d] = new Date().toLocaleDateString('sv').split('-');
+  await page.goto(BASE + '/notities/');
+  await page.getByText(`Wat ging goed op ${Number(d)}/${Number(m)}`).first().waitFor();
+  await page.goto(BASE + '/');
+  const drafts = page.getByRole('region', { name: 'Wacht op jouw akkoord' });
+  await drafts.getByText('Van workflow “Examen nadert: herhalen”').waitFor();
+  await drafts.getByText(/Herhalen Wiskunde voor \d+\/\d+/).first().waitFor();
+});
+
+await step('reminders: switch on, an appointment soon gives a message, tasks due today give one message', async () => {
+  const soon = new Date(Date.now() + 20 * 60000);
+  if (soon.toLocaleDateString('sv') !== new Date().toLocaleDateString('sv')) return; // too close to midnight to test
+  await page.goto(BASE + '/instellingen/');
+  const sw = page.getByRole('button', { name: 'Herinneringen', exact: true });
+  expect(await sw.getAttribute('aria-pressed') === 'false', 'reminders should start off');
+  await sw.click();
+  await page.waitForFunction(() => window.__notes.some((n) => n.title === 'Herinneringen staan aan'));
+  expect(await sw.getAttribute('aria-pressed') === 'true', 'reminders did not switch on');
+  await page.getByRole('combobox', { name: /Hoe lang voor een afspraak/ }).selectOption('30');
+  const hhmm = soon.toTimeString().slice(0, 5);
+  await page.getByLabel('Vraag ALL').fill(`afspraak oefenmatch vandaag om ${hhmm}`);
+  await page.getByLabel('Vraag ALL').press('Enter');
+  await page.waitForURL(BASE + '/');
+  await page.getByRole('region', { name: 'Wacht op jouw akkoord' }).getByRole('article', { name: /oefenmatch/i }).getByRole('button', { name: 'Goedkeuren' }).click();
+  await page.getByText('Goedgekeurd. Terugdraaien kan.').waitFor();
+  await page.reload();
+  await page.waitForFunction(() => window.__notes.some((n) => n.title.toLowerCase().includes('oefenmatch')), null, { timeout: 5000 });
+  await page.reload();
+  await page.waitForTimeout(500);
+  const count = await page.evaluate(() => window.__notes.filter((n) => n.title.toLowerCase().includes('oefenmatch')).length);
+  expect(count === 1, `appointment reminder shown ${count} times`);
+  if (new Date().getHours() >= 8 && new Date().getHours() < 21) {
+    const t = await page.evaluate(() => window.__notes.filter((n) => /vandaag af/.test(n.title)).length);
+    expect(t <= 1, 'task reminder repeated');
   }
+});
+
+await step('command window: Ctrl+K, go to a page, make a draft, search; ? lists shortcuts; g + letter navigates', async () => {
+  await page.goto(BASE + '/');
+  await page.getByRole('heading', { level: 1 }).waitFor();
+  await page.waitForTimeout(300); // keyboard shortcuts attach after the page has started
+  await page.keyboard.press('Control+k');
+  const box = page.getByRole('combobox', { name: 'Opdrachtvenster' });
+  await box.waitFor();
+  await box.fill('gewoon');
+  await page.getByRole('option', { name: /Gewoontes/ }).first().waitFor();
+  await box.press('Enter');
+  await page.waitForURL('**/gewoontes/');
+  await page.keyboard.press('Control+k');
+  await box.fill('taak vlieger bouwen morgen');
+  expect(await page.getByRole('option').first().getAttribute('aria-selected') === 'true', 'first option not selected');
+  await page.getByRole('option', { name: /Concept maken: Vlieger bouwen/i }).waitFor();
+  await box.press('Enter');
+  await page.waitForURL(BASE + '/');
+  await page.getByRole('region', { name: 'Wacht op jouw akkoord' }).getByRole('article', { name: /vlieger bouwen/i }).waitFor();
+  await page.keyboard.press('Control+k');
+  await box.fill('Lezen');
+  await page.getByRole('option', { name: /^Lezen/ }).waitFor();
+  await box.press('ArrowDown');
+  await page.keyboard.press('Escape');
+  await page.getByRole('combobox', { name: 'Opdrachtvenster' }).waitFor({ state: 'detached' });
+  await page.waitForTimeout(150);
+  await page.keyboard.press('?');
+  await page.getByRole('dialog', { name: 'Sneltoetsen' }).getByText('Opdrachtvenster openen').waitFor();
+  await shot('18-shortcuts');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(150);
+  await page.keyboard.press('g');
+  await page.keyboard.press('w');
+  await page.waitForURL('**/workflows/');
+  // shortcuts never fire while typing
+  await page.getByLabel('Vraag ALL').fill('gw');
+  expect(page.url().endsWith('/workflows/'), 'shortcut fired while typing');
+  await page.getByLabel('Vraag ALL').fill('');
+});
+
+await step('website builder: create from a template, edit with live preview, bad links refused, save, download', async () => {
+  await page.goto(BASE + '/websites/');
+  await page.getByText('Nog geen websites').waitFor();
+  await page.getByLabel('Naam (alleen voor jou)').fill('Mijn band');
+  await page.getByText('Krant', { exact: true }).click();
+  await page.getByRole('button', { name: 'Website maken' }).click();
+  await page.getByRole('heading', { name: 'Mijn band' }).waitFor();
+  await page.getByText('Opgeslagen', { exact: true }).waitFor();
+  await page.getByLabel('Titel bovenaan').fill('De Neonkatten');
+  await page.getByLabel('Ondertitel').fill('Garagerock uit de buurt');
+  await page.getByRole('button', { name: 'Blok toevoegen' }).click();
+  await page.getByLabel('Kop', { exact: true }).fill('Optredens');
+  await page.getByLabel('Tekst', { exact: true }).fill('Zaterdag in de jeugdclub.');
+  await page.getByRole('button', { name: 'Knop toevoegen' }).click();
+  await page.getByLabel('Tekst knop 1', { exact: true }).fill('Luister');
+  await page.getByLabel('Adres 1', { exact: true }).fill('javascript:alert(1)');
+  await page.getByText('Dit adres werkt niet').waitFor();
+  await page.getByLabel('Adres 1', { exact: true }).fill('voorbeeld.be');
+  expect(await page.getByText('Dit adres werkt niet').count() === 0, 'good link still flagged');
+  await page.getByText('Niet opgeslagen').waitFor();
+  const frame = page.frameLocator('iframe[title^="Voorbeeld"]');
+  await frame.getByRole('heading', { level: 1, name: 'De Neonkatten' }).waitFor();
+  await frame.getByRole('link', { name: 'Luister' }).waitFor();
+  await page.getByRole('button', { name: 'Telefoon' }).click();
+  await shot('19-website');
+  await page.getByRole('button', { name: 'Opslaan' }).first().click();
+  await page.getByText('Opgeslagen', { exact: true }).waitFor();
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Downloaden' }).click()]);
+  expect(dl.suggestedFilename() === 'mijn-band.html', 'file name ' + dl.suggestedFilename());
+  const html = await (await import('node:fs/promises')).readFile(await dl.path(), 'utf8');
+  expect(html.includes('<h1>De Neonkatten</h1>') && html.includes('href="https://voorbeeld.be/"') && !/javascript:|<script/i.test(html), 'downloaded site is wrong');
+  await page.getByRole('region', { name: 'Mijn band' }).getByRole('button', { name: 'Sluiten' }).click();
+  await page.getByRole('button', { name: 'Openen: Mijn band' }).waitFor();
+});
+
+await step('agents: briefing agent from a template, try it, it only sees what it may, draft lands for approval; AI agents wait', async () => {
+  await page.goto(BASE + '/agents/');
+  await page.getByText('Nog geen agents').waitFor();
+  await page.getByRole('button', { name: /^Ochtendbriefing/ }).click();
+  await page.getByLabel('Naam', { exact: true }).waitFor();
+  expect(await page.getByLabel('Elke dag vanzelf').isChecked(), 'schedule should be on for the briefing template');
+  await page.getByRole('radio', { name: 'Agenda: Lezen' }).check();
+  // a time later than now, so it does not run straight away and we can prepare it by hand
+  await page.getByLabel('Om', { exact: true }).fill('23:59');
+  await page.getByRole('button', { name: 'Agent maken' }).click();
+  const card = page.getByRole('article', { name: 'Ochtendbriefing' });
+  await card.getByText('Elke dag om 23:59').waitFor();
+  await card.getByRole('button', { name: /Proefdraaien/ }).click();
+  const tryRegion = page.getByRole('region', { name: 'Proefdraaien: Ochtendbriefing' });
+  await tryRegion.getByText('Dit zou hij vandaag schrijven').waitFor();
+  expect(await tryRegion.getByText('Notities', { exact: true }).count() === 0, 'agent sees notes without permission');
+  await tryRegion.getByRole('button', { name: 'Als concept klaarzetten' }).click();
+  await tryRegion.getByText('Vandaag al klaargezet').waitFor();
+  await shot('20-agents');
+  // take away the calendar and check the preview follows
+  await card.getByRole('button', { name: 'Bewerken: Ochtendbriefing' }).click();
+  await card.getByRole('radio', { name: 'Agenda: Niets' }).check();
+  await card.getByRole('button', { name: 'Opslaan' }).click();
+  expect(await tryRegion.locator('strong', { hasText: 'Agenda' }).count() === 0, 'calendar still visible to the agent');
+  await page.getByRole('button', { name: /^Studiecoach/ }).click();
+  await page.getByRole('button', { name: 'Agent maken' }).click();
+  const coach = page.getByRole('article', { name: 'Studiecoach' });
+  await coach.getByText('Slaapt tot de AI er is').waitFor();
+  await coach.getByRole('button', { name: /Proefdraaien/ }).click();
+  await coach.getByText(/heeft de AI nodig/).waitFor();
+  await page.goto(BASE + '/');
+  const drafts = page.getByRole('region', { name: 'Wacht op jouw akkoord' });
+  await drafts.getByText('Van agent “Ochtendbriefing”').waitFor();
+  await drafts.getByRole('article', { name: /^Briefing \d+\/\d+\/\d{4}$/ }).getByRole('button', { name: 'Goedkeuren' }).click();
+  await page.goto(BASE + '/notities/');
+  await page.getByText(/^Briefing \d+\/\d+\/\d{4}$/).first().waitFor();
 });
 
 await step('phone width: no horizontal overflow on any screen', async () => {
   await page.setViewportSize({ width: 375, height: 800 });
   const bad = [];
-  for (const p of ['/', '/taken/', '/agenda/', '/leren/', '/projecten/', '/notities/', '/geheugen/', '/logboek/', '/agents/', '/workflows/', '/instellingen/', '/zoeken/?q=a']) {
+  for (const p of ['/', '/taken/', '/agenda/', '/leren/', '/projecten/', '/notities/', '/geheugen/', '/logboek/', '/gewoontes/', '/agents/', '/workflows/', '/websites/', '/instellingen/', '/zoeken/?q=a']) {
     await page.goto(BASE + p);
     await page.waitForTimeout(150);
     const sw = await page.evaluate(() => document.documentElement.scrollWidth);

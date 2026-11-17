@@ -8,7 +8,7 @@ import Drafts from '@/components/Drafts';
 import { makeBriefing } from '@/lib/briefing';
 import TaskDialog from '@/components/TaskDialog';
 import { MODULES, TASK_SLOTS, sprite, type ModuleId } from '@/lib/city';
-import { isoDay, occurrences, subjectViews } from '@/lib/core';
+import { habitViews, isoDay, occurrences, subjectViews } from '@/lib/core';
 import { useT, type Key } from '@/lib/i18n';
 import { actions, useAll, useReady } from '@/lib/store';
 import { toast } from '@/lib/toast';
@@ -39,6 +39,9 @@ export default function Home() {
   const nOpen = open.length;
   const subs = subjectViews(s, today).filter((x) => !x.archived);
   const studyWeek = subs.reduce((a, x) => a + x.week, 0);
+  const habits = habitViews(s, today).filter((h) => !h.archived && h.today);
+  const habitsDone = habits.filter((h) => h.doneToday).length;
+  const activeRules = s.rules.filter((r) => r.enabled).length;
   const nextExam = subs.filter((x) => x.daysToExam !== null).sort((a, b) => (a.daysToExam ?? 0) - (b.daysToExam ?? 0))[0];
 
   const blocks: Block[] = useMemo(() => {
@@ -50,10 +53,13 @@ export default function Home() {
       taken: `${nOpen} ${t('mod.status.open')}`,
       notities: `${s.notes.length} ${s.notes.length === 1 ? t('mod.status.note') : t('mod.status.notes')}`,
       leren: `${studyWeek} ${t('learn.min')} ${lang === 'en' ? 'this week' : 'deze week'}`,
+      gewoontes: habits.length ? `${habitsDone}/${habits.length} ${t('habit.doneToday')}` : (lang === 'en' ? 'none today' : 'niets vandaag'),
+      workflows: `${activeRules} ${lang === 'en' ? 'active' : 'actief'}`,
+      web: `${s.sites.length} ${lang === 'en' ? (s.sites.length === 1 ? 'site' : 'sites') : (s.sites.length === 1 ? 'site' : 'sites')}`,
     };
     const mods: Block[] = MODULES.map((m) => {
       const name = t(`mod.${m.id}` as Key);
-      const short = m.id === 'notities' ? t('mod.notities.short') : m.id === 'geld' ? (lang === 'en' ? 'Money' : 'Geld') : m.id === 'gezondheid' ? (lang === 'en' ? 'Health' : 'Gezondheid') : name;
+      const short = m.id === 'notities' ? t('mod.notities.short') : m.id === 'web' ? 'Websites' : m.id === 'geld' ? (lang === 'en' ? 'Money' : 'Geld') : m.id === 'gezondheid' ? (lang === 'en' ? 'Health' : 'Gezondheid') : name;
       return {
         id: m.id, asset: m.asset, uv: m.uv, name, label: short, isTask: false, dim: !!m.phase,
         status: m.phase ? `${t('common.phase')} ${m.phase}` : status[m.id] ?? '',
@@ -64,7 +70,7 @@ export default function Home() {
       status: x.project || t('tasks.open'),
     }));
     return [...mods, ...tasks];
-  }, [s.notes.length, s.drafts.length, todayEvents.length, nOpen, open, studyWeek, t, lang]);
+  }, [s.notes.length, s.drafts.length, s.sites.length, todayEvents.length, nOpen, open, studyWeek, habits.length, habitsDone, activeRules, t, lang]);
 
   const sel = blocks.find((b) => b.id === selected) ?? blocks[0];
   const selModule = MODULES.find((m) => m.id === sel.id);

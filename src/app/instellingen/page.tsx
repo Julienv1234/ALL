@@ -3,6 +3,7 @@ import { useRef } from 'react';
 import Account from '@/components/Account';
 import Icon from '@/components/Icon';
 import PageHeader from '@/components/Page';
+import RemindSettings from '@/components/RemindSettings';
 import { cloudConfigured } from '@/lib/cloud-config';
 import { isoDay } from '@/lib/core';
 import { useT } from '@/lib/i18n';
@@ -46,6 +47,8 @@ export default function SettingsPage() {
           </label>
         </section>
 
+        <RemindSettings />
+
         <section className="glass panel" aria-labelledby="data-h">
           <h2 id="data-h" className="h2">{t('set.data')}</h2>
           <p className="muted" style={{ margin: 0, fontSize: 14 }}>{cloudConfigured ? t('set.data.cloud') : t('set.data.text')}</p>
@@ -70,7 +73,7 @@ export default function SettingsPage() {
         <section className="glass panel" aria-labelledby="about-h">
           <h2 id="about-h" className="h2">{t('set.about')}</h2>
           <p className="muted" style={{ margin: 0, fontSize: 14 }}>{t('set.about.text')}</p>
-          <p className="faint" style={{ margin: 0 }}>v0.4.0</p>
+          <p className="faint" style={{ margin: 0 }}>v0.5.0</p>
         </section>
       </div>
     </main>

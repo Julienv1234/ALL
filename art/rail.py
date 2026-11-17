@@ -215,8 +215,42 @@ ICONS['meer'] = [
     "................",
     "................",
     "................"]
-# 'meer' (more) is only used by the phone tab bar; keep it last so the other positions never move.
-ORDER = ['stad', 'agenda', 'taken', 'notities', 'leren', 'agents', 'workflows', 'geheugen', 'logboek', 'instellingen', 'meer']
+ICONS['gewoontes'] = [
+    "................",
+    ".......#........",
+    "......##........",
+    "......###.......",
+    ".....#.###......",
+    ".....#..##..#...",
+    "....#....#.##...",
+    "...##.......#...",
+    "...#.........#..",
+    "..#....##....#..",
+    "..#...#..#...#..",
+    "..#...#...#..#..",
+    "...#..#...#.#...",
+    "....#.......#...",
+    ".....#######....",
+    "................"]
+ICONS['websites'] = [
+    "................",
+    "................",
+    ".##############.",
+    ".#.#.#........#.",
+    ".##############.",
+    ".#............#.",
+    ".#.#####......#.",
+    ".#.#####..###.#.",
+    ".#.#####......#.",
+    ".#........###.#.",
+    ".#............#.",
+    ".#.##..##..##.#.",
+    ".#.##..##..##.#.",
+    ".##############.",
+    "................",
+    "................"]
+# Same order as the menu in Rail.tsx; 'meer' (more) is only used by the phone tab bar and stays last.
+ORDER = ['stad', 'agenda', 'taken', 'notities', 'leren', 'gewoontes', 'agents', 'workflows', 'websites', 'geheugen', 'logboek', 'instellingen', 'meer']
 
 
 def icon(grid, col, shadow):

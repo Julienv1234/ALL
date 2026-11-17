@@ -1,5 +1,5 @@
 /** The daily briefing, worked out from your own data. No AI, no network. */
-import { addDays, occurrences, subjectViews } from './core';
+import { addDays, habitViews, occurrences, subjectViews } from './core';
 import type { Lang, State } from './types';
 
 export interface Briefing {
@@ -62,6 +62,16 @@ export function makeBriefing(s: State, today: string, lang: Lang): Briefing {
     const when = e.daysToExam === 0 ? (en ? 'today' : 'vandaag') : e.daysToExam === 1 ? (en ? 'tomorrow' : 'morgen') : en ? `in ${e.daysToExam} days` : `over ${e.daysToExam} dagen`;
     const study = e.weeklyMinutes ? (en ? ` This week: ${e.week} of ${e.weeklyMinutes} min.` : ` Deze week: ${e.week} van ${e.weeklyMinutes} min.`) : '';
     lines.push((en ? `${e.name} exam ${when}.` : `Examen ${e.name} ${when}.`) + study);
+  }
+  const habits = habitViews(s, today).filter((h) => !h.archived && h.today);
+  if (habits.length) {
+    sources.add(en ? 'your habits' : 'je gewoontes');
+    const left = habits.filter((h) => !h.doneToday).map((h) => h.name);
+    lines.push(left.length === 0
+      ? (habits.length === 1
+        ? (en ? `Today's habit is done: ${habits[0].name}.` : `Je gewoonte van vandaag is gedaan: ${habits[0].name}.`)
+        : (en ? `All ${habits.length} habits done today.` : `Alle ${habits.length} gewoontes van vandaag gedaan.`))
+      : (en ? `Habits still to do: ${left.slice(0, 3).join(', ')}${left.length > 3 ? '…' : ''}.` : `Gewoontes nog te doen: ${left.slice(0, 3).join(', ')}${left.length > 3 ? '…' : ''}.`));
   }
   if (evTomorrow.length) {
     sources.add(en ? 'your calendar' : 'je agenda');
