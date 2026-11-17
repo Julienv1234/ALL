@@ -1,0 +1,77 @@
+# ALL
+
+Jouw persoonlijke thuisbasis: één app met een dashboard voor je dag, later ook een huis voor agents, workflows en een websitebouwer. De stijl is een neon Japanse stad in pixel-art: elke module, agent en taak is een eigen blok op de kaart.
+
+## Wat er nu in zit (fase 0 en 1)
+
+- **Stad**: de kaart met al je blokken. Elke open taak krijgt een eigen blokje met een lantaarn. Er is ook een lijstweergave.
+- **Taken**: toevoegen, project en deadline, bewerken, afvinken, verwijderen.
+- **Agenda**: afspraken per dag, met tijd en plaats.
+- **Notities**: schrijven, bewerken, zoeken.
+- **Geheugen**: alles wat ALL over jou onthoudt. Jij ziet het, past het aan en wist het.
+- **Logboek**: elke wijziging, met een knop om terug te draaien waar dat kan.
+- **Zoeken** in alles, **Nederlands en Engels**, en **back-up** downloaden en terugzetten.
+- Installeerbaar op telefoon en computer (PWA).
+
+Agents, mail, workflows en de websitebouwer zijn al zichtbaar als "komt later"-blokken, met de fase waarin ze komen.
+
+## Waar je gegevens staan
+
+Voorlopig **alleen in je browser, op dit toestel** (localStorage). Dat is gratis en werkt zonder account. Het nadeel: je browser wissen wist ook ALL. Download daarom af en toe een back-up via **Instellingen**.
+
+Later komt Supabase (database en login met tweestapsverificatie), zodat je gegevens veilig in de cloud staan en synchroniseren tussen toestellen. Alleen `src/lib/store.ts` moet daarvoor veranderen.
+
+## Zelf starten
+
+Je hebt [Node.js](https://nodejs.org) 20 of nieuwer nodig.
+
+```bash
+npm install
+npm run dev        # open http://localhost:3000
+```
+
+## Online zetten (gratis)
+
+1. Maak een account op [vercel.com](https://vercel.com) (met je GitHub).
+2. Kies **Add New → Project** en selecteer de repo `all`.
+3. Klik **Deploy**. Je hoeft niets in te stellen.
+
+Elke keer dat er nieuwe code in de repo komt, zet Vercel de nieuwe versie automatisch online.
+
+## Testen
+
+```bash
+npm run typecheck   # TypeScript
+npm test            # logica: opslaan, terugdraaien, back-up
+npm run build && node tests/e2e/run.mjs   # klikt in Chrome door de hele app
+```
+
+## Hoe de code in elkaar zit
+
+```
+src/app/            de schermen (stad, taken, agenda, notities, geheugen, logboek, ...)
+src/components/     menubalk, stadskaart, knoppen en meldingen
+src/lib/core.ts     alle logica, zonder browser: wijzigen, loggen, terugdraaien, back-up
+src/lib/store.ts    opslag in de browser (wordt later Supabase)
+src/lib/i18n.ts     alle teksten in het Nederlands en Engels
+src/lib/city.ts     posities van de blokken op de kaart
+public/img/         de pixel-art
+```
+
+## Ontwerpprincipes
+
+1. Goedkeuring eerst: niets gaat naar buiten zonder jouw klik.
+2. Alles staat in het logboek en is terug te draaien waar het kan.
+3. Klein en af: liever drie dingen goed dan tien half.
+4. Jij beheert je geheugen.
+
+## Volgende fasen
+
+| Fase | Wat |
+| --- | --- |
+| 2 | De assistent: een chat die je taken, notities en agenda kent. Alles met goedkeuring. |
+| 3 | Mail (Gmail, eerst alleen lezen) en workflows. |
+| 4 | Agents-huis: eigen agents, schema's, ochtendbriefing. |
+| 5 | Websitebouwer. |
+| 6 | Levensdomeinen: geld, gezondheid, leren, werk. |
+| 7 | Chat-koppelingen (Telegram of Slack) en verfijnen. |
