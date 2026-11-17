@@ -42,7 +42,7 @@ export default function NotesPage() {
   };
 
   return (
-    <main className="main">
+    <main id="inhoud" tabIndex={-1} className="main">
       <PageHeader title={t('notes.title')} sub={t('notes.sub')}
         actions={<button type="button" className="btn cta" style={{ minHeight: 46 }} onClick={() => setSelId('new')}><Icon name="plus" />{t('notes.new')}</button>} />
 

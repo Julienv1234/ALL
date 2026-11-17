@@ -1,5 +1,5 @@
 /** The daily briefing, worked out from your own data. No AI, no network. */
-import { addDays, sortEvents } from './core';
+import { addDays, occurrences, subjectViews } from './core';
 import type { Lang, State } from './types';
 
 export interface Briefing {
@@ -14,9 +14,9 @@ export function makeBriefing(s: State, today: string, lang: Lang): Briefing {
   const en = lang === 'en';
   const lines: string[] = [];
   const sources = new Set<string>();
-  const evToday = sortEvents(s.events.filter((e) => e.date === today));
+  const evToday = occurrences(s.events, today, today).map((o) => o.ev);
   const tomorrow = addDays(today, 1);
-  const evTomorrow = sortEvents(s.events.filter((e) => e.date === tomorrow));
+  const evTomorrow = occurrences(s.events, tomorrow, tomorrow).map((o) => o.ev);
   const open = s.tasks.filter((t) => !t.done);
   const late = open.filter((t) => t.due && t.due < today);
   const dueToday = open.filter((t) => t.due === today);
@@ -53,6 +53,15 @@ export function makeBriefing(s: State, today: string, lang: Lang): Briefing {
     lines.push(en
       ? `${s.drafts.length === 1 ? 'One draft waits' : `${s.drafts.length} drafts wait`} for your approval.`
       : `${s.drafts.length === 1 ? 'Eén concept wacht' : `${s.drafts.length} concepten wachten`} op jouw akkoord.`);
+  }
+  const subs = subjectViews(s, today).filter((x) => !x.archived);
+  const exams = subs.filter((x) => x.daysToExam !== null && x.daysToExam <= 14);
+  if (exams.length) {
+    sources.add(en ? 'your subjects' : 'je vakken');
+    const e = exams[0];
+    const when = e.daysToExam === 0 ? (en ? 'today' : 'vandaag') : e.daysToExam === 1 ? (en ? 'tomorrow' : 'morgen') : en ? `in ${e.daysToExam} days` : `over ${e.daysToExam} dagen`;
+    const study = e.weeklyMinutes ? (en ? ` This week: ${e.week} of ${e.weeklyMinutes} min.` : ` Deze week: ${e.week} van ${e.weeklyMinutes} min.`) : '';
+    lines.push((en ? `${e.name} exam ${when}.` : `Examen ${e.name} ${when}.`) + study);
   }
   if (evTomorrow.length) {
     sources.add(en ? 'your calendar' : 'je agenda');

@@ -112,6 +112,7 @@ await step('memory: add, edit, delete', async () => {
 
 await step('log shows everything and can undo', async () => {
   await page.goto(BASE + '/logboek/');
+  await page.locator('.list-item').nth(9).waitFor();
   const n = await page.locator('.list-item').count();
   expect(n >= 10, 'expected at least 10 log entries, got ' + n);
   await page.getByRole('button', { name: 'Terugdraaien' }).first().click();
@@ -217,6 +218,107 @@ await step('briefing reflects today', async () => {
   await page.getByText('Berekend uit je eigen gegevens, zonder AI.').waitFor();
 });
 
+await step('projects: tasks with a project label show up, make, rename, add task, archive', async () => {
+  await page.goto(BASE + '/projecten/');
+  await page.getByRole('heading', { level: 3, name: 'ALL' }).waitFor();
+  await page.getByLabel('Naam', { exact: true }).fill('School');
+  await page.getByLabel(/Doel/).fill('Examens halen');
+  await page.getByRole('button', { name: 'Toevoegen', exact: true }).click();
+  await page.getByRole('heading', { level: 3, name: 'School' }).waitFor();
+  await page.getByRole('article', { name: 'ALL' }).getByRole('button', { name: 'Bekijken' }).click();
+  await page.getByLabel('Taak in dit project').fill('Logo tekenen');
+  await page.getByRole('button', { name: 'Toevoegen', exact: true }).click();
+  await page.getByRole('region', { name: 'ALL' }).getByText('Logo tekenen').waitFor();
+  await page.getByLabel('Naam', { exact: true }).fill('ALL app');
+  await page.getByRole('button', { name: 'Opslaan', exact: true }).click();
+  await page.getByRole('heading', { level: 2, name: 'ALL app' }).waitFor();
+  await shot('12-projecten');
+  await page.goto(BASE + '/taken/');
+  await page.getByText('ALL app').first().waitFor();
+  await page.goto(BASE + '/projecten/');
+  await page.getByRole('article', { name: 'School' }).getByRole('button', { name: 'Bekijken' }).click();
+  await page.getByRole('button', { name: 'Archiveren' }).click();
+  await page.getByRole('button', { name: /Gearchiveerd · 1/ }).waitFor();
+  expect(await page.getByRole('article', { name: 'School' }).count() === 0, 'archived still listed');
+});
+
+await step('agenda: weekly event, week view, skip once, import and export .ics', async () => {
+  await page.goto(BASE + '/agenda/');
+  await page.getByLabel('Titel').fill('Les wiskunde');
+  await page.getByLabel(/Tijd/).fill('08:30');
+  await page.getByLabel('Herhalen').selectOption('weekly');
+  await page.getByRole('button', { name: 'Toevoegen', exact: true }).click();
+  expect(await page.getByText('Les wiskunde').count() >= 8, 'weekly event should show for 8 weeks');
+  await page.getByRole('button', { name: 'Verwijderen: Les wiskunde' }).nth(1).click();
+  await page.getByRole('button', { name: 'Alleen deze keer' }).click();
+  await page.waitForTimeout(200);
+  const left = await page.getByText('Les wiskunde').count();
+  expect(left === 7, 'one occurrence should be skipped, got ' + left);
+  await page.getByRole('button', { name: 'Week', exact: true }).click();
+  await page.getByRole('heading', { name: /Week van/ }).waitFor();
+  await page.getByRole('button', { name: 'Volgende week' }).click();
+  await shot('13-agenda-week');
+  await page.getByRole('button', { name: 'Lijst', exact: true }).click();
+  const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'BEGIN:VEVENT', 'UID:test-1', 'DTSTART;VALUE=DATE:' + new Date().toISOString().slice(0, 10).replace(/-/g, ''),
+    'SUMMARY:Uit Google Agenda', 'END:VEVENT', 'BEGIN:VEVENT', 'UID:test-2', 'DTSTART:20990101T100000', 'SUMMARY:Ver weg', 'RRULE:FREQ=YEARLY', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+  fs.writeFileSync('test-results/google.ics', ics);
+  await page.locator('input[type=file]').setInputFiles('test-results/google.ics');
+  await page.getByText('afspraken gevonden').waitFor();
+  await page.getByText(/herhalingen kon ALL niet precies/).waitFor();
+  await page.getByRole('button', { name: 'Importeren', exact: true }).click();
+  await page.getByText('Uit Google Agenda').waitFor();
+  await page.locator('input[type=file]').setInputFiles('test-results/google.ics');
+  await page.getByText('Geen nieuwe afspraken in dit bestand.').waitFor();
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Agenda exporteren (.ics)' }).click()]);
+  const out = fs.readFileSync(await dl.path(), 'utf8');
+  expect(out.includes('SUMMARY:Les wiskunde') && out.includes('RRULE:FREQ=WEEKLY') && out.includes('EXDATE'), 'export misses the weekly lesson');
+  await page.goto(BASE + '/');
+  await page.getByLabel('Vraag ALL').fill('les frans elke donderdag om 10:00');
+  await page.getByLabel('Vraag ALL').press('Enter');
+  await page.getByRole('button', { name: 'Goedkeuren' }).click();
+  await page.getByText('Goedgekeurd. Terugdraaien kan.').waitFor();
+  await page.goto(BASE + '/agenda/');
+  await page.getByText('Les frans').first().waitFor();
+  expect(await page.getByText('Les frans').count() >= 7, 'repeating draft did not repeat');
+});
+
+await step('learning: subject, focus timer keeps running across pages and saves when done, manual time, exam in briefing', async () => {
+  const examIso = new Date(Date.now() + 5 * 864e5).toLocaleDateString('sv');
+  await page.goto(BASE + '/leren/');
+  await page.getByText('Nog geen vakken').waitFor();
+  const form = page.locator('form', { has: page.getByRole('heading', { name: 'Nieuw vak' }) });
+  await form.getByLabel('Naam', { exact: true }).fill('Wiskunde');
+  await form.getByLabel('Doel', { exact: true }).fill('Hoofdstuk 4 tot 6 kennen');
+  await form.getByLabel('Examen of deadline').fill(examIso);
+  await form.getByLabel('Doel per week (min)').fill('120');
+  await form.getByRole('button', { name: 'Toevoegen' }).click();
+  const card = page.getByRole('article', { name: 'Wiskunde' });
+  await card.getByText('Examen over 5 dagen').waitFor();
+  await page.getByRole('button', { name: '15', exact: true }).click();
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await page.getByRole('button', { name: 'Pauze' }).waitFor();
+  await page.goto(BASE + '/taken/');
+  await page.getByRole('link', { name: /^Focustimer: .* Wiskunde/ }).waitFor();
+  await page.waitForFunction(() => document.title.includes('Wiskunde'), null, { timeout: 3000 });
+  // Pretend the timer started 16 minutes ago, then reload: it must save 15 minutes by itself.
+  await page.evaluate(() => { const t = JSON.parse(localStorage.getItem('all.timer')); t.startedAt -= 16 * 60000; localStorage.setItem('all.timer', JSON.stringify(t)); });
+  await page.reload();
+  await page.getByText('Klaar! Sessie opgeslagen.').waitFor();
+  expect(await page.getByRole('link', { name: /^Focustimer/ }).count() === 0, 'timer pill still there');
+  await page.goto(BASE + '/leren/');
+  await card.getByText('Deze week: 15 van 120 min').waitFor();
+  await page.getByLabel('Tijd invullen (min): Wiskunde').fill('30');
+  await card.getByRole('button', { name: 'Tijd invullen' }).click();
+  await card.getByText('Deze week: 45 van 120 min').waitFor();
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await page.getByRole('button', { name: 'Weggooien' }).click();
+  await page.getByRole('button', { name: 'Start', exact: true }).waitFor();
+  expect(await page.getByText('45 min', { exact: true }).count() === 1, 'week total should be 45');
+  await shot('14-leren');
+  await page.goto(BASE + '/');
+  await page.getByText('Examen Wiskunde over 5 dagen. Deze week: 45 van 120 min.').waitFor();
+});
+
 await step('later screens render', async () => {
   for (const p of ['/agents/', '/workflows/']) {
     await page.goto(BASE + p);
@@ -227,7 +329,7 @@ await step('later screens render', async () => {
 await step('phone width: no horizontal overflow on any screen', async () => {
   await page.setViewportSize({ width: 375, height: 800 });
   const bad = [];
-  for (const p of ['/', '/taken/', '/agenda/', '/notities/', '/geheugen/', '/logboek/', '/agents/', '/workflows/', '/instellingen/', '/zoeken/?q=a']) {
+  for (const p of ['/', '/taken/', '/agenda/', '/leren/', '/projecten/', '/notities/', '/geheugen/', '/logboek/', '/agents/', '/workflows/', '/instellingen/', '/zoeken/?q=a']) {
     await page.goto(BASE + p);
     await page.waitForTimeout(150);
     const sw = await page.evaluate(() => document.documentElement.scrollWidth);
@@ -238,6 +340,35 @@ await step('phone width: no horizontal overflow on any screen', async () => {
   await page.goto(BASE + '/taken/');
   await shot('10-phone-taken');
   expect(bad.length === 0, 'overflow: ' + bad.join(', '));
+});
+
+await step('phone: tab bar, More sheet opens and closes on navigation, timer pill above the bar', async () => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(BASE + '/');
+  const bar = page.getByRole('navigation', { name: 'Hoofdmenu' });
+  await bar.getByRole('link', { name: 'Leren' }).click();
+  await page.waitForURL('**/leren/');
+  expect(await bar.getByRole('link', { name: 'Leren' }).getAttribute('aria-current') === 'page', 'Leren tab not marked');
+  await bar.getByRole('button', { name: 'Meer' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Meer' });
+  await sheet.getByRole('link', { name: 'Logboek' }).click();
+  await page.waitForURL('**/logboek/');
+  expect(!(await sheet.isVisible()), 'sheet still open after navigating');
+  await page.keyboard.press('Escape');
+  await bar.getByRole('button', { name: 'Meer' }).click();
+  await sheet.waitFor();
+  await page.keyboard.press('Escape');
+  await sheet.waitFor({ state: 'hidden' });
+  await page.goto(BASE + '/leren/');
+  await page.getByRole('button', { name: 'Start', exact: true }).click();
+  await page.goto(BASE + '/notities/');
+  const pill = await page.locator('.timer-pill').boundingBox();
+  const tabs = await page.locator('.tabbar').boundingBox();
+  expect(pill && tabs && pill.y + pill.height <= tabs.y, 'timer pill overlaps the tab bar');
+  await shot('15-phone-leren-pill');
+  await page.goto(BASE + '/leren/');
+  await page.getByRole('button', { name: 'Weggooien' }).click();
+  await page.setViewportSize({ width: 1440, height: 1000 });
 });
 
 await step('no errors in the console', async () => {

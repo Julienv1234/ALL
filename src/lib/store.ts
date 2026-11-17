@@ -6,8 +6,9 @@
  */
 import { useSyncExternalStore } from 'react';
 import * as core from './core';
+import { parseIcs, toIcs, type IcsResult } from './ics';
 import { parseCommand } from './parse';
-import type { CalEvent, Collection, Draft, Item, Memory, Note, Settings, State, Task } from './types';
+import type { CalEvent, Collection, Draft, Item, Memory, Note, Project, Session, Settings, State, Subject, Task } from './types';
 
 const KEY = 'all.v1';
 const SERVER = core.emptyState();
@@ -136,6 +137,48 @@ export const actions = {
     commit(core.deleteItem(state, 'tasks', t.id, label(`Taak verwijderd: ${q(t.title)}`, `Task deleted: ${q(t.title)}`)));
   },
 
+  addProject(name: string, goal = '', deadline = '') {
+    const p = core.makeProject(name, goal, deadline);
+    commit(core.createItem(state, 'projects', p, label(`Project gemaakt: ${q(p.name)}`, `Project created: ${q(p.name)}`)));
+    return p;
+  },
+  /** Saves goal, deadline, archived and (if changed) the name. Implicit projects get stored on first edit. */
+  saveProject(p: Project, oldName: string): string {
+    let s = state;
+    let id = p.id;
+    if (p.name !== oldName) s = core.renameProject(s, oldName, p.name, label(`Project hernoemd: ${q(oldName)} → ${q(p.name)}`, `Project renamed: ${q(oldName)} → ${q(p.name)}`));
+    const stored = s.projects.find((x) => x.id === p.id);
+    s = stored
+      ? core.updateItem(s, 'projects', p, label(`Project bijgewerkt: ${q(p.name)}`, `Project updated: ${q(p.name)}`))
+      : core.createItem(s, 'projects', { ...p, id: (id = core.newId()) }, label(`Project bijgewerkt: ${q(p.name)}`, `Project updated: ${q(p.name)}`));
+    commit(s);
+    return id;
+  },
+  deleteProject(p: Project) {
+    commit(core.deleteItem(state, 'projects', p.id, label(`Project verwijderd: ${q(p.name)}`, `Project deleted: ${q(p.name)}`)));
+  },
+
+  addSubject(name: string, goal = '', exam = '', weeklyMinutes = 0) {
+    const x = core.makeSubject(name, goal, exam, weeklyMinutes);
+    commit(core.createItem(state, 'subjects', x, label(`Vak toegevoegd: ${q(x.name)}`, `Subject added: ${q(x.name)}`)));
+    return x;
+  },
+  updateSubject(x: Subject) {
+    commit(core.updateItem(state, 'subjects', x, label(`Vak bijgewerkt: ${q(x.name)}`, `Subject updated: ${q(x.name)}`)));
+  },
+  deleteSubject(x: Subject) {
+    commit(core.deleteItem(state, 'subjects', x.id, label(`Vak verwijderd: ${q(x.name)}`, `Subject deleted: ${q(x.name)}`)));
+  },
+  addSession(subjectId: string, minutes: number, date?: string) {
+    const sub = state.subjects.find((x) => x.id === subjectId);
+    const x = core.makeSession(subjectId, minutes, date);
+    commit(core.createItem(state, 'sessions', x, label(`${x.minutes} min gestudeerd: ${q(sub?.name ?? '?')}`, `Studied ${x.minutes} min: ${q(sub?.name ?? '?')}`)));
+    return x;
+  },
+  deleteSession(x: Session) {
+    commit(core.deleteItem(state, 'sessions', x.id, label('Studiesessie verwijderd', 'Study session deleted')));
+  },
+
   addNote(title: string, body: string) {
     const n = core.makeNote(title, body);
     commit(core.createItem(state, 'notes', n, label(`Notitie gemaakt: ${q(n.title)}`, `Note created: ${q(n.title)}`)));
@@ -148,13 +191,27 @@ export const actions = {
     commit(core.deleteItem(state, 'notes', n.id, label(`Notitie verwijderd: ${q(n.title)}`, `Note deleted: ${q(n.title)}`)));
   },
 
-  addEvent(title: string, date: string, time = '', place = '') {
-    const e = core.makeEvent(title, date, time, place);
+  addEvent(title: string, date: string, time = '', place = '', repeat: CalEvent['repeat'] = 'none', until = '') {
+    const e = core.makeEvent(title, date, time, place, repeat, until);
     commit(core.createItem(state, 'events', e, label(`Afspraak gepland: ${q(e.title)}`, `Event added: ${q(e.title)}`)));
     return e;
   },
   updateEvent(e: CalEvent) {
     commit(core.updateItem(state, 'events', e, label(`Afspraak gewijzigd: ${q(e.title)}`, `Event edited: ${q(e.title)}`)));
+  },
+  /** Leaves one date out of a repeating series. */
+  skipOccurrence(e: CalEvent, date: string) {
+    commit(core.updateItem(state, 'events', { ...e, skip: [...new Set([...e.skip, date])] }, label(`Eén keer overgeslagen: ${q(e.title)} op ${date}`, `Skipped once: ${q(e.title)} on ${date}`)));
+  },
+  /** Reads a .ics file. Nothing changes until importEvents is called with the result. */
+  readIcs(text: string): IcsResult {
+    return parseIcs(text, new Set(state.events.map((e) => e.uid).filter(Boolean)));
+  },
+  importEvents(events: CalEvent[]) {
+    commit(core.createMany(state, 'events', events, label(`Agenda geïmporteerd: ${events.length} afspraken`, `Calendar imported: ${events.length} events`)));
+  },
+  exportIcs(): string {
+    return toIcs(state.events);
   },
   deleteEvent(e: CalEvent) {
     commit(core.deleteItem(state, 'events', e.id, label(`Afspraak verwijderd: ${q(e.title)}`, `Event deleted: ${q(e.title)}`)));

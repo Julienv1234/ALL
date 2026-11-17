@@ -3,7 +3,7 @@ import { useRef } from 'react';
 import Account from '@/components/Account';
 import Icon from '@/components/Icon';
 import PageHeader from '@/components/Page';
-import { cloudConfigured } from '@/lib/cloud';
+import { cloudConfigured } from '@/lib/cloud-config';
 import { isoDay } from '@/lib/core';
 import { useT } from '@/lib/i18n';
 import { actions, hasSaveError, useAll } from '@/lib/store';
@@ -25,7 +25,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <main className="main">
+    <main id="inhoud" tabIndex={-1} className="main">
       <PageHeader title={t('set.title')} sub={t('set.sub')} />
       {hasSaveError() && <div className="glass panel" role="alert" style={{ borderColor: 'var(--accent)' }}>{t('set.saveError')}</div>}
 
@@ -70,7 +70,7 @@ export default function SettingsPage() {
         <section className="glass panel" aria-labelledby="about-h">
           <h2 id="about-h" className="h2">{t('set.about')}</h2>
           <p className="muted" style={{ margin: 0, fontSize: 14 }}>{t('set.about.text')}</p>
-          <p className="faint" style={{ margin: 0 }}>v0.3.0</p>
+          <p className="faint" style={{ margin: 0 }}>v0.4.0</p>
         </section>
       </div>
     </main>

@@ -7,7 +7,7 @@ const p = (s: string) => parseCommand(s, T);
 
 describe('commands become drafts', () => {
   it('event with weekday and time', () => {
-    expect(p('afspraak tandarts donderdag om 14:30')).toEqual({ kind: 'event', title: 'Tandarts', date: '2026-11-19', time: '14:30', project: '', body: '' });
+    expect(p('afspraak tandarts donderdag om 14:30')).toEqual({ kind: 'event', repeat: 'none', title: 'Tandarts', date: '2026-11-19', time: '14:30', project: '', body: '' });
   });
   it('event without command word, because it has a time', () => {
     expect(p('voetbaltraining morgen 18u')).toMatchObject({ kind: 'event', title: 'Voetbaltraining', date: '2026-11-18', time: '18:00' });
@@ -35,6 +35,20 @@ describe('commands become drafts', () => {
   });
   it('same weekday means next week', () => {
     expect(takeDate('dinsdag', T).date).toBe('2026-11-24');
+  });
+});
+
+describe('repeats', () => {
+  it('every weekday, starting on the next one', () => {
+    expect(p('les wiskunde elke dinsdag om 9:00')).toMatchObject({ kind: 'event', repeat: 'weekly', title: 'Les wiskunde', date: '2026-11-17', time: '09:00' });
+    expect(p('voetbal every thursday 18:00')).toMatchObject({ kind: 'event', repeat: 'weekly', title: 'Voetbal', date: '2026-11-19', time: '18:00' });
+  });
+  it('daily and monthly, even without a time', () => {
+    expect(p('lezen elke dag')).toMatchObject({ kind: 'event', repeat: 'daily', title: 'Lezen', date: T, time: '' });
+    expect(p('zakgeld maandelijks op 1/12')).toMatchObject({ kind: 'event', repeat: 'monthly', title: 'Zakgeld', date: '2026-12-01' });
+  });
+  it('tasks never repeat', () => {
+    expect(p('taak kamer opruimen elke week')).toMatchObject({ kind: 'task', repeat: 'none', title: 'Kamer opruimen elke week' });
   });
 });
 

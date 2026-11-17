@@ -2,18 +2,19 @@
 
 Jouw persoonlijke thuisbasis: één app met een dashboard voor je dag, later ook een huis voor agents, workflows en een websitebouwer. De stijl is een neon Japanse stad in pixel-art: elke module, agent en taak is een eigen blok op de kaart.
 
-## Wat er nu in zit (fase 0 en 1)
+## Wat er nu in zit (v0.4)
 
 - **Stad**: de kaart met al je blokken. Elke open taak krijgt een eigen blokje met een lantaarn. Er is ook een lijstweergave.
-- **Taken**: toevoegen, project en deadline, bewerken, afvinken, verwijderen.
-- **Agenda**: afspraken per dag, met tijd en plaats.
+- **Taken en projecten**: toevoegen, project en deadline, bewerken, afvinken, verwijderen. Projecten krijgen een eigen pagina met doel, voortgang en archief.
+- **Agenda**: afspraken met tijd en plaats, ook herhalend (elke dag, week of maand, één keer overslaan kan). Lijst- en weekweergave. Afspraken importeren uit en exporteren naar Google Agenda of Apple Agenda (.ics), zonder koppeling of account.
+- **Leren**: je vakken met doel, examendatum en een doel per week. Een focustimer (15, 25 of 45 minuten) die doorloopt als je wegklikt of de app sluit, en de sessie zelf opslaat als hij klaar is. Studietijd per dag, dagen op rij, en je examen verschijnt in de briefing.
 - **Notities**: schrijven, bewerken, zoeken.
 - **Geheugen**: alles wat ALL over jou onthoudt. Jij ziet het, past het aan en wist het.
 - **Logboek**: elke wijziging, met een knop om terug te draaien waar dat kan.
 - **Vraag ALL** begrijpt korte zinnen, zonder AI: "afspraak tandarts donderdag om 14:30", "taak naam kiezen morgen #ALL", "onthoud dat ik maandag vrij ben", "noteer ideeën: lantaarn als logo". Er komt eerst een **concept** in *Wacht op jouw akkoord*; pas als jij goedkeurt wordt het echt. Andere tekst wordt een zoekopdracht.
-- **Briefing** van vandaag, berekend uit je eigen agenda en taken.
+- **Briefing** van vandaag, berekend uit je eigen agenda, taken en examens.
 - **Zoeken** in alles, **Nederlands en Engels**, en **back-up** downloaden en terugzetten.
-- Installeerbaar op telefoon en computer (PWA).
+- Installeerbaar op telefoon en computer (PWA), met een eigen pixel-icoon. Op de telefoon zit het menu onderaan, binnen bereik van je duim; de rest staat onder **Meer**.
 - **Login en cloud** (Supabase), met tweestapsverificatie. Zie [SETUP.md](SETUP.md).
 
 Mail, workflows, de onderzoeker en de websitebouwer zijn al zichtbaar als "komt later"-blokken, met de fase waarin ze komen. In fase 2 neemt Claude het begrijpen van zinnen over; de goedkeuringsstap blijft dezelfde.
@@ -67,7 +68,10 @@ src/lib/parse.ts     zinnen omzetten naar concepten (zonder AI)
 src/lib/briefing.ts de dagelijkse briefing
 src/lib/i18n.ts     alle teksten in het Nederlands en Engels
 src/lib/city.ts     posities van de blokken op de kaart
-public/img/         de pixel-art
+src/lib/timer.ts    de focustimer (bewaart alleen het startmoment)
+src/lib/ics.ts      agenda-bestanden lezen en schrijven
+public/img/         de pixel-art (getekend met de Python-scripts in art/)
+public/fonts/       Silkscreen, alleen voor cijfers in pixelletters (OFL-licentie)
 ```
 
 ## Ontwerpprincipes
@@ -85,5 +89,5 @@ public/img/         de pixel-art
 | 3 | Mail (Gmail, eerst alleen lezen) en workflows. |
 | 4 | Agents-huis: eigen agents, schema's, ochtendbriefing. |
 | 5 | Websitebouwer. |
-| 6 | Levensdomeinen: geld, gezondheid, leren, werk. |
+| 6 | Levensdomeinen: geld, gezondheid, werk. Leren is er al (zonder gevoelige gegevens); geld en gezondheid wachten tot login, back-ups en jullie toestemming geregeld zijn. |
 | 7 | Chat-koppelingen (Telegram of Slack) en verfijnen. |

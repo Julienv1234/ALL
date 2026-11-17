@@ -8,7 +8,7 @@ import Drafts from '@/components/Drafts';
 import { makeBriefing } from '@/lib/briefing';
 import TaskDialog from '@/components/TaskDialog';
 import { MODULES, TASK_SLOTS, sprite, type ModuleId } from '@/lib/city';
-import { isoDay } from '@/lib/core';
+import { isoDay, occurrences, subjectViews } from '@/lib/core';
 import { useT, type Key } from '@/lib/i18n';
 import { actions, useAll, useReady } from '@/lib/store';
 import { toast } from '@/lib/toast';
@@ -35,8 +35,11 @@ export default function Home() {
 
   const today = isoDay();
   const open = s.tasks.filter((x) => !x.done);
-  const todayEvents = s.events.filter((e) => e.date === today);
+  const todayEvents = occurrences(s.events, today, today).map((o) => o.ev);
   const nOpen = open.length;
+  const subs = subjectViews(s, today).filter((x) => !x.archived);
+  const studyWeek = subs.reduce((a, x) => a + x.week, 0);
+  const nextExam = subs.filter((x) => x.daysToExam !== null).sort((a, b) => (a.daysToExam ?? 0) - (b.daysToExam ?? 0))[0];
 
   const blocks: Block[] = useMemo(() => {
     const status: Partial<Record<ModuleId, string>> = {
@@ -46,6 +49,7 @@ export default function Home() {
       agenda: `${todayEvents.length} ${t('mod.status.todayN')}`,
       taken: `${nOpen} ${t('mod.status.open')}`,
       notities: `${s.notes.length} ${s.notes.length === 1 ? t('mod.status.note') : t('mod.status.notes')}`,
+      leren: `${studyWeek} ${t('learn.min')} ${lang === 'en' ? 'this week' : 'deze week'}`,
     };
     const mods: Block[] = MODULES.map((m) => {
       const name = t(`mod.${m.id}` as Key);
@@ -60,7 +64,7 @@ export default function Home() {
       status: x.project || t('tasks.open'),
     }));
     return [...mods, ...tasks];
-  }, [s.notes.length, s.drafts.length, todayEvents.length, nOpen, open, t, lang]);
+  }, [s.notes.length, s.drafts.length, todayEvents.length, nOpen, open, studyWeek, t, lang]);
 
   const sel = blocks.find((b) => b.id === selected) ?? blocks[0];
   const selModule = MODULES.find((m) => m.id === sel.id);
@@ -81,6 +85,9 @@ export default function Home() {
     : sel.id === 'taken' ? (open.length ? open.slice(0, 3).map((x) => x.title).join(' · ') : t('tasks.none'))
     : sel.id === 'briefing' ? makeBriefing(s, today, lang).lines.join(' ')
     : sel.id === 'notities' ? `${s.notes.length} ${s.notes.length === 1 ? t('mod.status.note') : t('mod.status.notes')}, ${s.memories.length} ${lang === 'en' ? (s.memories.length === 1 ? 'memory' : 'memories') : (s.memories.length === 1 ? 'herinnering' : 'herinneringen')}.`
+    : sel.id === 'leren' ? (subs.length
+      ? [nextExam ? `${nextExam.daysToExam === 0 ? t('learn.examToday') : `${t('brief.exam')} ${nextExam.name} ${t('brief.in')} ${nextExam.daysToExam} ${nextExam.daysToExam === 1 ? t('learn.day') : t('learn.days')}`}.` : '', `${t('brief.study')}: ${studyWeek} ${t('learn.min')}.`].filter(Boolean).join(' ')
+      : pickText('leren'))
     : pickText(sel.id as ModuleId);
 
   const kind = sel.isTask ? (lang === 'en' ? 'Task' : 'Taak')
@@ -89,7 +96,7 @@ export default function Home() {
     : ['assistent', 'briefing', 'onderzoeker'].includes(sel.id) ? t('mod.agent') : t('mod.kind');
 
   return (
-    <main className="main" aria-busy={!ready}>
+    <main id="inhoud" tabIndex={-1} className="main" aria-busy={!ready}>
       <header style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'flex-end', gap: '16px 32px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div className="muted" style={{ fontSize: 13 }}>{dateText.charAt(0).toUpperCase() + dateText.slice(1)}</div>

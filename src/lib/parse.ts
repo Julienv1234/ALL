@@ -10,6 +10,7 @@ export type DraftKind = 'task' | 'event' | 'note' | 'memory';
 
 export interface ParsedDraft {
   kind: DraftKind;
+  repeat: 'none' | 'daily' | 'weekly' | 'monthly';
   title: string;
   date: string; // task: due date, event: date
   time: string;
@@ -104,6 +105,28 @@ export function takeTime(text: string): { time: string; rest: string } {
   return { time: '', rest: text };
 }
 
+/** "elke dinsdag", "every week", "dagelijks" … Returns the repeat and the text without it. */
+export function takeRepeat(text: string, today: string): { repeat: ParsedDraft['repeat']; date: string; rest: string } {
+  const cut = (m: RegExpMatchArray) => (text.slice(0, m.index) + ' ' + text.slice(m.index! + m[0].length)).trim();
+  const wd = text.match(new RegExp(`\\b(?:elke|iedere|every)\\s+(${Object.keys(WEEKDAYS).join('|')})\\b`, 'i'));
+  if (wd) {
+    const want = WEEKDAYS[wd[1].toLowerCase()];
+    const [y, mo, d] = today.split('-').map(Number);
+    const diff = (want - new Date(y, mo - 1, d).getDay() + 7) % 7;
+    return { repeat: 'weekly', date: addDays(today, diff), rest: cut(wd) };
+  }
+  const tries: [RegExp, ParsedDraft['repeat']][] = [
+    [/\b(elke dag|iedere dag|dagelijks|every day|daily)\b/i, 'daily'],
+    [/\b(elke week|iedere week|wekelijks|every week|weekly)\b/i, 'weekly'],
+    [/\b(elke maand|iedere maand|maandelijks|every month|monthly)\b/i, 'monthly'],
+  ];
+  for (const [re, repeat] of tries) {
+    const m = text.match(re);
+    if (m) return { repeat, date: '', rest: cut(m) };
+  }
+  return { repeat: 'none', date: '', rest: text };
+}
+
 function tidy(s: string): string {
   const t = s
     .replace(/\s+/g, ' ')
@@ -125,31 +148,33 @@ export function parseCommand(input: string, today: string): ParsedDraft | null {
 
   if (kind === 'memory') {
     const body = tidy(text);
-    return body ? { kind, title: body, date: '', time: '', project: '', body: '' } : null;
+    return body ? { kind, repeat: 'none', title: body, date: '', time: '', project: '', body: '' } : null;
   }
   if (kind === 'note') {
     const i = text.indexOf(':');
     const title = tidy(i > 0 ? text.slice(0, i) : text.slice(0, 60));
     const body = i > 0 ? text.slice(i + 1).trim() : text.length > 60 ? text : '';
-    return title ? { kind, title, date: '', time: '', project: '', body } : null;
+    return title ? { kind, repeat: 'none', title, date: '', time: '', project: '', body } : null;
   }
 
   let project = '';
   const tag = text.match(/(?:^|\s)#([\p{L}\p{N}_-]+)/u);
   if (tag) { project = tag[1]; text = text.replace(tag[0], ' '); }
 
-  const t = takeTime(text);
-  const d = takeDate(t.rest, today);
+  // Tasks cannot repeat (yet): then the words stay in the title instead of vanishing.
+  const r = kind === 'task' ? { repeat: 'none' as const, date: '', rest: text } : takeRepeat(text, today);
+  const t = takeTime(r.rest);
+  const d = r.date ? { date: r.date, rest: t.rest } : takeDate(t.rest, today);
   const title = tidy(d.rest);
   if (!title) return null;
 
   if (!kind) {
     // No command word: only treat it as a command when it names a moment.
-    if (!t.time && !d.date) return null;
-    kind = t.time ? 'event' : 'task';
+    if (!t.time && !d.date && r.repeat === 'none') return null;
+    kind = t.time || r.repeat !== 'none' ? 'event' : 'task';
   }
   if (kind === 'event') {
-    return { kind, title, date: d.date || today, time: t.time, project: '', body: '' };
+    return { kind, repeat: r.repeat, title, date: d.date || today, time: t.time, project: '', body: '' };
   }
-  return { kind: 'task', title, date: d.date, time: '', project, body: '' };
+  return { kind: 'task', repeat: 'none', title, date: d.date, time: '', project, body: '' };
 }

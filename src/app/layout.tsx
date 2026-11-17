@@ -10,12 +10,13 @@ import Rail from '@/components/Rail';
 import Toasts from '@/components/Toasts';
 import ClientBoot from '@/components/ClientBoot';
 import AuthGate from '@/components/AuthGate';
+import TimerWatch from '@/components/TimerWatch';
 
 export const metadata: Metadata = {
   title: 'ALL',
   description: 'Jouw persoonlijke thuisbasis.',
   manifest: '/manifest.webmanifest',
-  icons: { icon: '/icon-192.png', apple: '/apple-icon.png' },
+  icons: { icon: [{ url: '/favicon-32.png', sizes: '32x32', type: 'image/png' }, { url: '/icon-192.png', sizes: '192x192', type: 'image/png' }], apple: '/apple-icon.png' },
   appleWebApp: { capable: true, title: 'ALL', statusBarStyle: 'black-translucent' },
 };
 
@@ -23,6 +24,7 @@ export const viewport: Viewport = {
   themeColor: '#07060f',
   width: 'device-width',
   initialScale: 1,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -33,6 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AuthGate>
             <Rail />
             {children}
+            <TimerWatch />
           </AuthGate>
         </div>
         <Toasts />

@@ -2,7 +2,7 @@
 import meta from '../../public/img/islands-meta.json';
 
 export type Asset = keyof typeof meta;
-export type ModuleId = 'hub' | 'assistent' | 'mail' | 'briefing' | 'agenda' | 'taken' | 'notities' | 'onderzoeker' | 'web' | 'geld' | 'gezondheid';
+export type ModuleId = 'hub' | 'leren' | 'assistent' | 'mail' | 'briefing' | 'agenda' | 'taken' | 'notities' | 'onderzoeker' | 'web' | 'geld' | 'gezondheid';
 
 export interface ModuleDef {
   id: ModuleId;
@@ -21,6 +21,7 @@ export const MODULES: ModuleDef[] = [
   { id: 'taken', asset: 'taken', uv: [0, 11], href: '/taken/' },
   { id: 'notities', asset: 'notities', uv: [11, 0], href: '/notities/' },
   { id: 'onderzoeker', asset: 'onderzoeker', uv: [11, -11], phase: 4 },
+  { id: 'leren', asset: 'leren', uv: [-11.5, -11.5], href: '/leren/' },
   { id: 'web', asset: 'perceel', uv: [11, 11], phase: 5 },
   { id: 'geld', asset: 'perceel', uv: [21, 11], phase: 6 },
   { id: 'gezondheid', asset: 'perceel', uv: [11, 21], phase: 6 },
@@ -37,6 +38,7 @@ export const ROUTES: [ModuleId, ModuleId, RouteKind][] = [
   ['hub', 'notities', 'live'],
   ['agenda', 'briefing', 'link'],
   ['briefing', 'hub', 'live'],
+  ['leren', 'briefing', 'live'],
   ['mail', 'assistent', 'later'],
   ['assistent', 'hub', 'live'],
   ['onderzoeker', 'notities', 'later'],

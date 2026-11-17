@@ -8,7 +8,7 @@ export default function LogPage() {
   const s = useAll();
   const { t, locale } = useT();
   return (
-    <main className="main">
+    <main id="inhoud" tabIndex={-1} className="main">
       <PageHeader title={t('log.title')} sub={t('log.sub')} />
       <section className="glass panel" aria-label={t('log.title')}>
         <div className="divide">

@@ -20,7 +20,7 @@ function Results() {
   ].filter((g) => g.items.length) : [];
 
   return (
-    <main className="main">
+    <main id="inhoud" tabIndex={-1} className="main">
       <PageHeader title={t('search.title')} sub={q ? `“${q}”` : t('search.empty')} />
       {q && groups.length === 0 && <section className="glass panel"><p className="muted" style={{ margin: 0 }}>{t('search.none')} “{q}”.</p></section>}
       {groups.map((g) => (
@@ -41,5 +41,5 @@ function Results() {
 }
 
 export default function SearchPage() {
-  return <Suspense fallback={<main className="main" />}><Results /></Suspense>;
+  return <Suspense fallback={<main id="inhoud" tabIndex={-1} className="main" />}><Results /></Suspense>;
 }

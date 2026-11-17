@@ -1,4 +1,5 @@
 'use client';
+import { useEffect, useRef } from 'react';
 import { MAP_H, MAP_W, MODULES, ROUTES, SLOT_PARENT, TASK_SLOTS, half, roadBetween, scr, sprite, type Asset, type RouteKind } from '@/lib/city';
 import { useT } from '@/lib/i18n';
 import Icon from './Icon';
@@ -55,7 +56,8 @@ export default function CityMap({ blocks, selected, onSelect, zoom, setZoom, ext
   setZoom: (z: number) => void;
   extraTasks: number;
 }) {
-  const { t } = useT();
+  const { t, lang } = useT();
+  const to = lang === 'en' ? 'to' : 'naar';
   const byId = new Map(blocks.map((b) => [b.id, b]));
   const sel = byId.get(selected) ?? byId.get('hub')!;
   const [gx, gy] = scr(...sel.uv);
@@ -63,9 +65,18 @@ export default function CityMap({ blocks, selected, onSelect, zoom, setZoom, ext
   const tasks = blocks.filter((b) => b.isTask);
   const ordered = [...blocks].sort((a, b) => a.uv[0] + a.uv[1] - (b.uv[0] + b.uv[1]) || a.uv[0] - b.uv[0]);
   const name = (b: Block) => b.name;
+  const mapRef = useRef<HTMLDivElement>(null);
+  // On a narrow screen the 900 px city does not fit: start with the home base in the middle, swipe to explore.
+  useEffect(() => {
+    const box = mapRef.current?.parentElement;
+    if (!box || box.scrollWidth <= box.clientWidth) return;
+    const [hx, hy] = scr(0, 0);
+    box.scrollLeft = hx - box.clientWidth / 2;
+    box.scrollTop = Math.max(0, hy - box.clientHeight / 2);
+  }, []);
 
   return (
-    <div className="map">
+    <div className="map" ref={mapRef}>
       <div className="mapzoom" style={{ transform: `scale(${zoom})` }}>
         <svg aria-hidden="true" width={MAP_W} height={MAP_H} style={{ position: 'absolute', inset: 0, fill: 'none', stroke: 'rgba(255,255,255,0.035)', pointerEvents: 'none' }}>
           {Array.from({ length: 17 }, (_, i) => -40 + i * 5).flatMap((c) => {
@@ -77,11 +88,11 @@ export default function CityMap({ blocks, selected, onSelect, zoom, setZoom, ext
         {ROUTES.map(([a, b, kind]) => {
           const A = byId.get(a), B = byId.get(b);
           if (!A || !B) return null;
-          return <Road key={a + b} a={A} b={B} kind={kind} label={`${name(A)} – ${name(B)}`} />;
+          return <Road key={a + b} a={A} b={B} kind={kind} label={`${t('home.road')} ${name(A)} ${to} ${name(B)}`} />;
         })}
         {tasks.map((tb, i) => {
           const parent = SLOT_PARENT[i] === -1 ? byId.get('taken') : tasks[SLOT_PARENT[i]];
-          return parent ? <Road key={'r' + tb.id} a={parent} b={tb} kind="task" label={`${name(parent)} – ${tb.name}`} /> : null;
+          return parent ? <Road key={'r' + tb.id} a={parent} b={tb} kind="task" label={`${t('home.road')} ${name(parent)} ${to} ${tb.name}`} /> : null;
         })}
 
         <div className="glowsel" aria-hidden="true" style={{
@@ -131,7 +142,7 @@ export default function CityMap({ blocks, selected, onSelect, zoom, setZoom, ext
         <div className="muted" style={{ fontSize: 13 }}>{t('home.city.hint')}</div>
       </div>
 
-      <div className="glass" style={{ position: 'absolute', left: 20, top: 664, padding: '10px 14px', borderRadius: 12, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, lineHeight: '16px', color: 'var(--ink-2)' }}>
+      <div className="glass map-legend" style={{ position: 'absolute', left: 20, top: 664, padding: '10px 14px', borderRadius: 12, display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, lineHeight: '16px', color: 'var(--ink-2)' }}>
         {([['live', t('home.legend.live')], ['link', t('home.legend.link')], ['later', t('home.legend.later')]] as const).map(([k, l]) => (
           <div key={k} className="row" style={{ gap: 10 }}>
             <svg width="28" height="6" viewBox="0 0 28 6" fill="none" aria-hidden="true">
@@ -143,7 +154,7 @@ export default function CityMap({ blocks, selected, onSelect, zoom, setZoom, ext
         ))}
       </div>
 
-      <div className="glass" style={{ position: 'absolute', left: 836, top: 606, padding: 4, borderRadius: 14, display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div className="glass map-zoom" style={{ position: 'absolute', left: 836, top: 606, padding: 4, borderRadius: 14, display: 'flex', flexDirection: 'column', gap: 4 }}>
         <button type="button" className="btn icon" aria-label={t('home.zoomIn')} disabled={zoom >= 1.3} onClick={() => setZoom(Math.min(1.3, Math.round((zoom + 0.1) * 10) / 10))}><Icon name="plus" /></button>
         <button type="button" className="btn icon" aria-label={t('home.zoomOut')} disabled={zoom <= 0.7} onClick={() => setZoom(Math.max(0.7, Math.round((zoom - 0.1) * 10) / 10))}><Icon name="minus" /></button>
         <button type="button" className="btn icon" aria-label={t('home.zoomReset')} onClick={() => { setZoom(1); onSelect('hub'); }}><Icon name="target" /></button>

@@ -6,7 +6,7 @@ import { useT, type Key } from '@/lib/i18n';
 export default function Later({ title, sub, items }: { title: Key; sub: Key; items: { img: string; name: string; phase: number; text: string }[] }) {
   const { t } = useT();
   return (
-    <main className="main">
+    <main id="inhoud" tabIndex={-1} className="main">
       <PageHeader title={t(title)} sub={t(sub)} />
       <section className="glass panel" aria-label={t('later.title')}>
         <h2 className="h2">{t('later.title')}</h2>

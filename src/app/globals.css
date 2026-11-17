@@ -1,3 +1,10 @@
+/* Pixelify Sans draws 5 and 2 like S and Z. Silkscreen (OFL) takes over only the digits, % and :. */
+@font-face {
+  font-family: 'ALL Digits';
+  src: url('/fonts/silkscreen-digits.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+0025, U+0030-003A;
+}
 :root {
   --ink: #f4f1fa;
   --ink-2: #c9c3d9;
@@ -6,7 +13,7 @@
   --accent: #ff4d6d;
   --cyan: #7ff0e0;
   --line: rgba(255, 255, 255, 0.12);
-  --pixel: 'Pixelify Sans', 'Courier New', monospace;
+  --pixel: 'ALL Digits', 'Pixelify Sans', 'Courier New', monospace;
   --sans: 'Inter', system-ui, 'Segoe UI', Arial, sans-serif;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   color-scheme: dark;
@@ -101,7 +108,7 @@ p { text-wrap: pretty; }
 
 .seg { height: 46px; padding: 4px; display: inline-flex; gap: 2px; border-radius: 14px; }
 .seg .btn { min-height: 0; height: 100%; border-radius: 10px; }
-.seg .btn[aria-pressed='false'] { background: transparent; border-color: transparent; box-shadow: none; color: var(--ink-2); }
+.seg .btn[aria-pressed='false'], .seg a.btn:not([aria-current]) { background: transparent; border-color: transparent; box-shadow: none; color: var(--ink-2); }
 
 .field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--ink-3); min-width: 0; }
 .input {
@@ -142,6 +149,15 @@ input[type='date'].input, input[type='time'].input { color-scheme: dark; }
 .chip { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 8px; border: 1px solid var(--line); font-size: 12px; color: var(--ink-2); }
 .chip.warn { border-color: rgba(255, 120, 140, 0.6); color: #ffd3dc; }
 
+/* ---------- keyboard ---------- */
+.skip {
+  position: absolute; left: 8px; top: 8px; z-index: 60; padding: 10px 14px; border-radius: 10px;
+  background: var(--ink); color: #12060b; font-weight: 600; text-decoration: none;
+  transform: translateY(-160%);
+}
+.skip:focus-visible { transform: none; outline-color: var(--accent); }
+main:focus { outline: none; }
+
 /* ---------- pixel menu ---------- */
 .rail {
   flex: 1 1 92px;
@@ -163,7 +179,7 @@ input[type='date'].input, input[type='time'].input { color-scheme: dark; }
   background: url(/img/rail-plate.png) center / 80px 72px no-repeat;
 }
 .navi[aria-current='page'] .plate { background-image: url(/img/rail-plate-on.png); }
-.ico { display: block; width: 48px; height: 48px; background-image: url(/img/rail-icons.png); background-size: 432px 96px; }
+.ico { display: block; width: 48px; height: 48px; background-image: url(/img/rail-icons.png); background-repeat: no-repeat; }
 .navi-label { font-family: var(--pixel); font-size: 12px; line-height: 14px; color: #bdb6d0; text-shadow: 0 1px 0 #000; }
 .navi[aria-current='page'] .navi-label { color: #ffd3dc; text-shadow: 0 0 8px var(--accent); }
 .railfoot { display: block; margin-top: auto; width: 92px; height: 104px; }
@@ -171,16 +187,58 @@ input[type='date'].input, input[type='time'].input { color-scheme: dark; }
   .navi:hover .plate { filter: brightness(1.35); }
   .navi:hover .navi-label { color: var(--ink); }
 }
+/* ---------- phone: pixel tab bar at the bottom, the rest in a sheet ---------- */
+.tabbar, .sheet { display: none; }
 @media (max-width: 700px) {
-  .railfoot { display: none; }
-  .navi { width: 76px; }
-  .plate { width: 68px; height: 56px; background-size: 68px 61px; }
-  .ico { transform: scale(0.85); }
+  .rail { display: none; }
+  .main { padding-top: max(20px, env(safe-area-inset-top)); padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  .tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    padding: 6px max(6px, env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left));
+    background-color: #130f1d; background-image: url(/img/rail-wall.png); background-size: 20% 80px; background-origin: content-box; background-position: 0 0;
+    image-rendering: pixelated;
+    box-shadow: 0 -1px 0 rgba(255, 77, 109, 0.45), 0 -10px 28px rgba(0, 0, 0, 0.5);
+  }
+  .tab {
+    position: relative; min-height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    border: 0; background: none; padding: 0; cursor: pointer; text-decoration: none; border-radius: 10px;
+    -webkit-tap-highlight-color: transparent; transition: transform 140ms var(--ease-out);
+  }
+  .tab:active { transform: scale(0.94); }
+  .tab-label { font-family: var(--pixel); font-size: 11px; line-height: 13px; color: #bdb6d0; text-shadow: 0 1px 0 #000; }
+  .tab[aria-current='page'] .tab-label, .tab[data-on] .tab-label { color: #ffd3dc; text-shadow: 0 0 8px var(--accent); }
+  .tab[aria-current='page']::before, .tab[data-on]::before {
+    content: ''; position: absolute; top: -6px; left: 30%; right: 30%; height: 3px; background: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
+  }
+  .sheet[open] {
+    display: block; margin: auto 0 0; width: 100%; max-width: 100%; max-height: 85dvh; padding: 0; border: 0;
+    background: transparent; color: inherit; overflow: visible;
+    transition: transform 280ms cubic-bezier(0.32, 0.72, 0, 1), opacity 200ms ease;
+  }
+  @starting-style { .sheet[open] { transform: translateY(100%); opacity: 0.6; } }
+  .sheet::backdrop { background: rgba(4, 3, 10, 0.6); }
+  .sheet-in {
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+    padding: 10px 16px calc(16px + env(safe-area-inset-bottom));
+    background-color: #130f1d; background-image: url(/img/rail-wall.png); background-size: 92px 80px; image-rendering: pixelated;
+    border-top: 1px solid rgba(255, 77, 109, 0.55); border-radius: 16px 16px 0 0;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.6);
+  }
+  .sheet-in > * { image-rendering: auto; }
+  .sheet-grip { width: 40px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.25); }
+  .sheet-grid { display: grid; grid-template-columns: repeat(3, 92px); gap: 8px 12px; justify-content: center; }
 }
 
 /* ---------- map ---------- */
 .mapbox { flex: 999 1 600px; min-width: 0; overflow: auto; background: rgba(6, 5, 12, 0.66); border: 1px solid var(--line); border-radius: 16px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08); }
 .map { position: relative; width: 900px; height: 760px; margin: 0 auto; overflow: hidden; }
+@media (max-width: 700px) {
+  /* Phone: swipe the city instead of zooming; the controls would sit off screen. */
+  .mapbox:has(> .map) { max-height: 560px; overscroll-behavior: contain; }
+  .map-zoom, .map-legend { display: none !important; }
+}
 .mapzoom { position: absolute; inset: 0; transform-origin: 450px 360px; transition: transform 220ms var(--ease-out); }
 .isle { position: absolute; padding: 0; border: 0; background: none; cursor: pointer; transition: transform 160ms var(--ease-out); }
 .isle:active { transform: scale(0.97); }
@@ -198,6 +256,7 @@ input[type='date'].input, input[type='time'].input { color-scheme: dark; }
 
 /* ---------- toast ---------- */
 .toasts { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 50; display: flex; flex-direction: column; gap: 8px; width: min(440px, calc(100vw - 32px)); }
+@media (max-width: 700px) { .toasts { bottom: calc(84px + env(safe-area-inset-bottom)); } }
 .toast { padding: 10px 10px 10px 16px; display: flex; align-items: center; gap: 12px; font-size: 14px; border-color: color-mix(in srgb, var(--accent) 55%, white); }
 .toast { animation: toast-in 200ms var(--ease-out); }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
@@ -208,8 +267,20 @@ dialog::backdrop { background: rgba(4, 3, 10, 0.6); -webkit-backdrop-filter: blu
 .list-item { padding: 12px 0; display: flex; align-items: center; gap: 12px; }
 .check { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); flex: 0 0 auto; }
 
+/* Solid panels for people who turn transparency off in their system settings. */
+@media (prefers-reduced-transparency: reduce) {
+  .glass, .btn, dialog::backdrop { -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .glass { background: #1a1427; }
+  .btn { background-color: #2a2238; }
+  .mapchip { background: #0c0914; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .btn, .navi, .isle, .isle img, .mapzoom, .glowsel { transition: none; }
+  .btn, .navi, .tab, .sheet[open], .isle, .isle img, .mapzoom, .glowsel { transition: none; }
   .flow { animation: none; }
   .toast { animation: none; }
 }
+
+/* Focus timer pill on every page except Learning. */
+.timer-pill { position: fixed; right: 16px; bottom: 16px; z-index: 40; }
+@media (max-width: 700px) { .timer-pill { right: 12px; bottom: calc(84px + env(safe-area-inset-bottom)); } }

@@ -110,7 +110,7 @@ describe('first cloud sync', () => {
 
 describe('drafts wait for approval', () => {
   const draft = (kind: 'task' | 'event' | 'note' | 'memory') =>
-    core.makeDraft({ kind, title: 'Tandarts', date: '2026-11-19', time: '14:30', project: 'ALL', body: 'b', source: 'zin' });
+    core.makeDraft({ kind, repeat: 'none', title: 'Tandarts', date: '2026-11-19', time: '14:30', project: 'ALL', body: 'b', source: 'zin' });
 
   it('approving creates the real item and removes the draft', () => {
     for (const kind of ['task', 'event', 'note', 'memory'] as const) {
@@ -141,5 +141,39 @@ describe('drafts wait for approval', () => {
     const s = core.createItem(core.emptyState(), 'drafts', d, 'p');
     expect(core.parseState(JSON.parse(JSON.stringify(s)))?.drafts).toEqual([d]);
     expect(core.parseState({ v: 1, drafts: [{ id: 'x', title: 't', kind: 'rocket' }] })?.drafts).toEqual([]);
+  });
+});
+
+describe('projects', () => {
+  function withTasks() {
+    let s = core.emptyState();
+    s = core.createItem(s, 'tasks', core.makeTask('Logo', 'ALL', '2026-11-20'), 'a');
+    s = core.createItem(s, 'tasks', core.makeTask('Naam', 'all', '2026-11-18'), 'a');
+    s = core.createItem(s, 'tasks', { ...core.makeTask('Klaar', 'ALL'), done: true }, 'a');
+    s = core.createItem(s, 'tasks', core.makeTask('Hoofdstuk 4', 'School'), 'a');
+    return s;
+  }
+  it('task labels become projects, case-insensitive, with counts and the next task', () => {
+    const v = core.projectViews(withTasks());
+    expect(v.map((p) => p.name)).toEqual(['ALL', 'School']);
+    expect(v[0]).toMatchObject({ open: 2, done: 1, implicit: true });
+    expect(v[0].next?.title).toBe('Naam');
+  });
+  it('a made project carries goal and deadline and sorts by deadline', () => {
+    let s = withTasks();
+    s = core.createItem(s, 'projects', core.makeProject('School', 'Examens halen', '2026-12-01'), 'p');
+    s = core.createItem(s, 'projects', core.makeProject('Leeg', '', '2026-11-30'), 'p');
+    const v = core.projectViews(s);
+    expect(v.map((p) => p.name)).toEqual(['Leeg', 'School', 'ALL']);
+    expect(v[1]).toMatchObject({ goal: 'Examens halen', implicit: false, open: 1 });
+  });
+  it('rename moves the tasks along', () => {
+    const s = core.renameProject(withTasks(), 'ALL', 'ALL app', 'rename');
+    expect(s.tasks.filter((t) => t.project === 'ALL app')).toHaveLength(3);
+    expect(core.projectViews(s).map((p) => p.name)).toContain('ALL app');
+  });
+  it('projects survive saving and loading', () => {
+    const s = core.createItem(core.emptyState(), 'projects', core.makeProject('School', 'doel'), 'p');
+    expect(core.parseState(JSON.parse(JSON.stringify(s)))?.projects).toEqual(s.projects);
   });
 });

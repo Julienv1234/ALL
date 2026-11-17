@@ -44,7 +44,7 @@ export default function MemoryPage() {
   const [text, setText] = useState('');
   const list = [...s.memories].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   return (
-    <main className="main">
+    <main id="inhoud" tabIndex={-1} className="main">
       <PageHeader title={t('mem.title')} sub={t('mem.sub')} />
       <form className="glass panel" onSubmit={(e) => { e.preventDefault(); if (!text.trim()) return; actions.addMemory(text); setText(''); }}>
         <label className="field" htmlFor="mem-new"><span className="h2" style={{ color: 'var(--ink)' }}>{t('mem.new')}</span></label>

@@ -12,7 +12,6 @@ import type { State } from './types';
 const URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
 
-export const cloudConfigured = Boolean(URL && KEY);
 
 let client: SupabaseClient | null = null;
 export function sb(): SupabaseClient {
