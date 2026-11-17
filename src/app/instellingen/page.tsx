@@ -1,7 +1,9 @@
 'use client';
 import { useRef } from 'react';
+import Account from '@/components/Account';
 import Icon from '@/components/Icon';
 import PageHeader from '@/components/Page';
+import { cloudConfigured } from '@/lib/cloud';
 import { isoDay } from '@/lib/core';
 import { useT } from '@/lib/i18n';
 import { actions, hasSaveError, useAll } from '@/lib/store';
@@ -28,6 +30,8 @@ export default function SettingsPage() {
       {hasSaveError() && <div className="glass panel" role="alert" style={{ borderColor: 'var(--accent)' }}>{t('set.saveError')}</div>}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(340px, 100%), 1fr))', gap: 20, alignItems: 'start' }}>
+        <Account />
+
         <section className="glass panel" aria-labelledby="pref-h">
           <h2 id="pref-h" className="h2">{t('set.title')}</h2>
           <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
@@ -44,7 +48,7 @@ export default function SettingsPage() {
 
         <section className="glass panel" aria-labelledby="data-h">
           <h2 id="data-h" className="h2">{t('set.data')}</h2>
-          <p className="muted" style={{ margin: 0, fontSize: 14 }}>{t('set.data.text')}</p>
+          <p className="muted" style={{ margin: 0, fontSize: 14 }}>{cloudConfigured ? t('set.data.cloud') : t('set.data.text')}</p>
           <div className="wrap">
             <button type="button" className="btn cta" onClick={download}><Icon name="download" />{t('set.export')}</button>
             <button type="button" className="btn" onClick={() => file.current?.click()}><Icon name="upload" />{t('set.import')}</button>
@@ -57,7 +61,7 @@ export default function SettingsPage() {
             }} />
           </div>
           <div style={{ borderTop: '1px solid var(--line)', paddingTop: 14 }}>
-            <button type="button" className="btn danger" onClick={() => { if (window.confirm(t('set.wipe.confirm'))) { actions.wipe(); toast(t('set.wipe.done')); } }}>
+            <button type="button" className="btn danger" onClick={() => { if (window.confirm(cloudConfigured ? t('set.wipe.cloud') : t('set.wipe.confirm'))) { actions.wipe(); toast(t('set.wipe.done')); } }}>
               <Icon name="trash" />{t('set.wipe')}
             </button>
           </div>
@@ -66,7 +70,7 @@ export default function SettingsPage() {
         <section className="glass panel" aria-labelledby="about-h">
           <h2 id="about-h" className="h2">{t('set.about')}</h2>
           <p className="muted" style={{ margin: 0, fontSize: 14 }}>{t('set.about.text')}</p>
-          <p className="faint" style={{ margin: 0 }}>v0.1.0</p>
+          <p className="faint" style={{ margin: 0 }}>v0.2.0</p>
         </section>
       </div>
     </main>

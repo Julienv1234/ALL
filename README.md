@@ -12,14 +12,16 @@ Jouw persoonlijke thuisbasis: één app met een dashboard voor je dag, later ook
 - **Logboek**: elke wijziging, met een knop om terug te draaien waar dat kan.
 - **Zoeken** in alles, **Nederlands en Engels**, en **back-up** downloaden en terugzetten.
 - Installeerbaar op telefoon en computer (PWA).
+- **Login en cloud** (Supabase), met tweestapsverificatie. Zie [SETUP.md](SETUP.md).
 
 Agents, mail, workflows en de websitebouwer zijn al zichtbaar als "komt later"-blokken, met de fase waarin ze komen.
 
 ## Waar je gegevens staan
 
-Voorlopig **alleen in je browser, op dit toestel** (localStorage). Dat is gratis en werkt zonder account. Het nadeel: je browser wissen wist ook ALL. Download daarom af en toe een back-up via **Instellingen**.
+- **Zonder Supabase** (zoals nu): alleen in je browser, op dat ene toestel. Download af en toe een back-up via **Instellingen**.
+- **Met Supabase**: je logt in (met tweestapsverificatie als je wilt) en je gegevens staan in de cloud, hetzelfde op al je toestellen. Elke wijziging gaat binnen twee seconden naar de cloud; als je terugkomt in de app haalt hij de nieuwste versie op. Staan er op een toestel andere gegevens dan in de cloud, dan vraagt ALL welke je wilt houden. Er gaat nooit zomaar iets verloren.
 
-Later komt Supabase (database en login met tweestapsverificatie), zodat je gegevens veilig in de cloud staan en synchroniseren tussen toestellen. Alleen `src/lib/store.ts` moet daarvoor veranderen.
+Hoe je Supabase instelt staat stap voor stap in **[SETUP.md](SETUP.md)**.
 
 ## Zelf starten
 
@@ -44,6 +46,10 @@ Elke keer dat er nieuwe code in de repo komt, zet Vercel de nieuwe versie automa
 npm run typecheck   # TypeScript
 npm test            # logica: opslaan, terugdraaien, back-up
 npm run build && node tests/e2e/run.mjs   # klikt in Chrome door de hele app
+
+# login, tweestapsverificatie en synchroniseren, tegen een nagebootste Supabase:
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_test npx next build
+mv out out-cloud && node tests/e2e/cloud.mjs out-cloud
 ```
 
 ## Hoe de code in elkaar zit
@@ -52,7 +58,9 @@ npm run build && node tests/e2e/run.mjs   # klikt in Chrome door de hele app
 src/app/            de schermen (stad, taken, agenda, notities, geheugen, logboek, ...)
 src/components/     menubalk, stadskaart, knoppen en meldingen
 src/lib/core.ts     alle logica, zonder browser: wijzigen, loggen, terugdraaien, back-up
-src/lib/store.ts    opslag in de browser (wordt later Supabase)
+src/lib/store.ts    opslag in de browser
+src/lib/cloud.ts    Supabase: login en synchroniseren tussen toestellen
+supabase/schema.sql de tabel en de beveiligingsregels in Supabase
 src/lib/i18n.ts     alle teksten in het Nederlands en Engels
 src/lib/city.ts     posities van de blokken op de kaart
 public/img/         de pixel-art

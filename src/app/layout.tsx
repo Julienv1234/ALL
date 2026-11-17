@@ -9,6 +9,7 @@ import './globals.css';
 import Rail from '@/components/Rail';
 import Toasts from '@/components/Toasts';
 import ClientBoot from '@/components/ClientBoot';
+import AuthGate from '@/components/AuthGate';
 
 export const metadata: Metadata = {
   title: 'ALL',
@@ -29,8 +30,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="nl">
       <body>
         <div className="city">
-          <Rail />
-          {children}
+          <AuthGate>
+            <Rail />
+            {children}
+          </AuthGate>
         </div>
         <Toasts />
         <ClientBoot />

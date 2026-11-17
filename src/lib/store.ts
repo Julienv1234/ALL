@@ -15,6 +15,7 @@ let state: State = SERVER;
 let loaded = false;
 let saveError = false;
 const listeners = new Set<() => void>();
+const changeListeners = new Set<(s: State) => void>();
 
 function load(): State {
   try {
@@ -37,16 +38,55 @@ function ensureLoaded() {
   });
 }
 
-function commit(next: State) {
-  if (next === state) return;
-  state = next;
+function persist() {
   try {
     window.localStorage.setItem(KEY, JSON.stringify(state));
     saveError = false;
   } catch {
     saveError = true;
   }
+}
+
+/** A change made in this app: saved locally and announced to the cloud sync. */
+function commit(next: State) {
+  if (next === state) return;
+  state = next;
+  persist();
   listeners.forEach((l) => l());
+  changeListeners.forEach((l) => l(state));
+}
+
+/** Current state, outside React (used by the cloud sync). */
+export const getState = () => {
+  ensureLoaded();
+  return state;
+};
+
+/** Replace everything with data that came from the cloud. Not logged, not echoed back. */
+export function replaceFromCloud(next: State) {
+  ensureLoaded();
+  state = next;
+  persist();
+  listeners.forEach((l) => l());
+}
+
+/** Wipes this device's copy, e.g. after signing out on a shared computer. */
+export function clearDevice() {
+  state = core.emptyState();
+  try {
+    window.localStorage.removeItem(KEY);
+  } catch {
+    /* nothing to clear */
+  }
+  listeners.forEach((l) => l());
+}
+
+/** Called after every change made in the app. */
+export function onLocalChange(l: (s: State) => void) {
+  changeListeners.add(l);
+  return () => {
+    changeListeners.delete(l);
+  };
 }
 
 function subscribe(l: () => void) {

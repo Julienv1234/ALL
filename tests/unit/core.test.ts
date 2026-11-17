@@ -88,3 +88,22 @@ describe('dates', () => {
     expect(core.sortEvents([a, b, c]).map((e) => e.title)).toEqual(['c', 'a', 'b']);
   });
 });
+
+describe('first cloud sync', () => {
+  const withTask = () => core.createItem(core.emptyState(), 'tasks', core.makeTask('x'), 'add');
+  it('uploads when the cloud has nothing yet', () => {
+    expect(core.firstSync(withTask(), null)).toBe('upload');
+    expect(core.firstSync(withTask(), core.emptyState())).toBe('upload');
+  });
+  it('downloads onto an empty device', () => {
+    expect(core.firstSync(core.emptyState(), withTask())).toBe('download');
+  });
+  it('does nothing when both are empty or equal', () => {
+    expect(core.firstSync(core.emptyState(), core.emptyState())).toBe('none');
+    const s = withTask();
+    expect(core.firstSync(s, JSON.parse(JSON.stringify(s)))).toBe('none');
+  });
+  it('asks when both sides hold different data', () => {
+    expect(core.firstSync(withTask(), withTask())).toBe('ask');
+  });
+});

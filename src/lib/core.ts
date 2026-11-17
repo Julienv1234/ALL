@@ -177,3 +177,26 @@ export function addDays(day: string, n: number): string {
 export function sortEvents(events: CalEvent[]): CalEvent[] {
   return [...events].sort((a, b) => (a.date + (a.time || '00:00')).localeCompare(b.date + (b.time || '00:00')));
 }
+
+/* ---------- cloud sync decisions ---------- */
+
+export function itemCount(s: State): number {
+  return s.tasks.length + s.notes.length + s.events.length + s.memories.length;
+}
+
+export type FirstSync = 'upload' | 'download' | 'ask' | 'none';
+
+/**
+ * What to do the first time this device meets the cloud copy.
+ * Never throws away data silently: when both sides hold items, the person chooses.
+ */
+export function firstSync(local: State, cloud: State | null): FirstSync {
+  const l = itemCount(local);
+  if (!cloud) return 'upload';
+  const c = itemCount(cloud);
+  if (l === 0 && c === 0) return 'none';
+  if (l === 0) return 'download';
+  if (c === 0) return 'upload';
+  if (JSON.stringify({ ...local, log: [] }) === JSON.stringify({ ...cloud, log: [] })) return 'none';
+  return 'ask';
+}
