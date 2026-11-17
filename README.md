@@ -10,11 +10,13 @@ Jouw persoonlijke thuisbasis: één app met een dashboard voor je dag, later ook
 - **Notities**: schrijven, bewerken, zoeken.
 - **Geheugen**: alles wat ALL over jou onthoudt. Jij ziet het, past het aan en wist het.
 - **Logboek**: elke wijziging, met een knop om terug te draaien waar dat kan.
+- **Vraag ALL** begrijpt korte zinnen, zonder AI: "afspraak tandarts donderdag om 14:30", "taak naam kiezen morgen #ALL", "onthoud dat ik maandag vrij ben", "noteer ideeën: lantaarn als logo". Er komt eerst een **concept** in *Wacht op jouw akkoord*; pas als jij goedkeurt wordt het echt. Andere tekst wordt een zoekopdracht.
+- **Briefing** van vandaag, berekend uit je eigen agenda en taken.
 - **Zoeken** in alles, **Nederlands en Engels**, en **back-up** downloaden en terugzetten.
 - Installeerbaar op telefoon en computer (PWA).
 - **Login en cloud** (Supabase), met tweestapsverificatie. Zie [SETUP.md](SETUP.md).
 
-Agents, mail, workflows en de websitebouwer zijn al zichtbaar als "komt later"-blokken, met de fase waarin ze komen.
+Mail, workflows, de onderzoeker en de websitebouwer zijn al zichtbaar als "komt later"-blokken, met de fase waarin ze komen. In fase 2 neemt Claude het begrijpen van zinnen over; de goedkeuringsstap blijft dezelfde.
 
 ## Waar je gegevens staan
 
@@ -61,6 +63,8 @@ src/lib/core.ts     alle logica, zonder browser: wijzigen, loggen, terugdraaien,
 src/lib/store.ts    opslag in de browser
 src/lib/cloud.ts    Supabase: login en synchroniseren tussen toestellen
 supabase/schema.sql de tabel en de beveiligingsregels in Supabase
+src/lib/parse.ts     zinnen omzetten naar concepten (zonder AI)
+src/lib/briefing.ts de dagelijkse briefing
 src/lib/i18n.ts     alle teksten in het Nederlands en Engels
 src/lib/city.ts     posities van de blokken op de kaart
 public/img/         de pixel-art

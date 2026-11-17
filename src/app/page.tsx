@@ -3,6 +3,9 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import CityMap, { type Block } from '@/components/CityMap';
 import AskBox from '@/components/AskBox';
+import BriefingCard from '@/components/BriefingCard';
+import Drafts from '@/components/Drafts';
+import { makeBriefing } from '@/lib/briefing';
 import TaskDialog from '@/components/TaskDialog';
 import { MODULES, TASK_SLOTS, sprite, type ModuleId } from '@/lib/city';
 import { isoDay } from '@/lib/core';
@@ -38,6 +41,8 @@ export default function Home() {
   const blocks: Block[] = useMemo(() => {
     const status: Partial<Record<ModuleId, string>> = {
       hub: t('mod.status.rest'),
+      assistent: s.drafts.length ? `${s.drafts.length} ${lang === 'en' ? (s.drafts.length === 1 ? 'draft' : 'drafts') : (s.drafts.length === 1 ? 'concept' : 'concepten')}` : (lang === 'en' ? 'basics work' : 'basis werkt'),
+      briefing: lang === 'en' ? 'today' : 'vandaag',
       agenda: `${todayEvents.length} ${t('mod.status.todayN')}`,
       taken: `${nOpen} ${t('mod.status.open')}`,
       notities: `${s.notes.length} ${s.notes.length === 1 ? t('mod.status.note') : t('mod.status.notes')}`,
@@ -55,7 +60,7 @@ export default function Home() {
       status: x.project || t('tasks.open'),
     }));
     return [...mods, ...tasks];
-  }, [s.notes.length, todayEvents.length, nOpen, open, t, lang]);
+  }, [s.notes.length, s.drafts.length, todayEvents.length, nOpen, open, t, lang]);
 
   const sel = blocks.find((b) => b.id === selected) ?? blocks[0];
   const selModule = MODULES.find((m) => m.id === sel.id);
@@ -74,6 +79,7 @@ export default function Home() {
     ? [selTask?.project, selTask?.due ? (lang === 'en' ? 'Due ' : 'Deadline ') + new Date(selTask.due + 'T12:00').toLocaleDateString(locale, { day: 'numeric', month: 'long' }) : ''].filter(Boolean).join(' · ') || t('tasks.sub')
     : sel.id === 'agenda' ? (todayEvents.length ? [...todayEvents].sort((a, b) => a.time.localeCompare(b.time)).map((e) => `${e.time || t('agenda.allDay')} ${e.title}`).join(' · ') : t('agenda.none'))
     : sel.id === 'taken' ? (open.length ? open.slice(0, 3).map((x) => x.title).join(' · ') : t('tasks.none'))
+    : sel.id === 'briefing' ? makeBriefing(s, today, lang).lines.join(' ')
     : sel.id === 'notities' ? `${s.notes.length} ${s.notes.length === 1 ? t('mod.status.note') : t('mod.status.notes')}, ${s.memories.length} ${lang === 'en' ? (s.memories.length === 1 ? 'memory' : 'memories') : (s.memories.length === 1 ? 'herinnering' : 'herinneringen')}.`
     : pickText(sel.id as ModuleId);
 
@@ -102,10 +108,8 @@ export default function Home() {
 
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'stretch', gap: '24px 28px' }}>
         <div style={{ flex: '1 1 320px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <section className="glass panel" aria-labelledby="pending-h">
-            <h2 id="pending-h" className="h2">{t('home.pending')}</h2>
-            <p className="muted" style={{ margin: 0, fontSize: 14 }}>{t('home.pending.none')}</p>
-          </section>
+          <Drafts />
+          <BriefingCard />
 
           <section className="glass panel" aria-live="polite" style={{ flex: 1 }}>
             <div className="row" style={{ gap: 14 }}>

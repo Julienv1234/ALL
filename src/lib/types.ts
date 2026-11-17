@@ -34,8 +34,21 @@ export interface Memory {
   updatedAt: string;
 }
 
-export type Collection = 'tasks' | 'notes' | 'events' | 'memories';
-export type Item = Task | Note | CalEvent | Memory;
+/** Something ALL proposes; nothing happens until you approve it. */
+export interface Draft {
+  id: string;
+  kind: 'task' | 'event' | 'note' | 'memory';
+  title: string;
+  date: string;
+  time: string;
+  project: string;
+  body: string;
+  source: string; // what you typed, or later: which agent proposed it
+  createdAt: string;
+}
+
+export type Collection = 'tasks' | 'notes' | 'events' | 'memories' | 'drafts';
+export type Item = Task | Note | CalEvent | Memory | Draft;
 
 /** How to undo a logged action. */
 export type Undo =
@@ -63,6 +76,7 @@ export interface State {
   notes: Note[];
   events: CalEvent[];
   memories: Memory[];
+  drafts: Draft[];
   log: LogEntry[];
   settings: Settings;
 }

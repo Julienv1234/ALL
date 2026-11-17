@@ -70,7 +70,7 @@ export default function SettingsPage() {
         <section className="glass panel" aria-labelledby="about-h">
           <h2 id="about-h" className="h2">{t('set.about')}</h2>
           <p className="muted" style={{ margin: 0, fontSize: 14 }}>{t('set.about.text')}</p>
-          <p className="faint" style={{ margin: 0 }}>v0.2.0</p>
+          <p className="faint" style={{ margin: 0 }}>v0.3.0</p>
         </section>
       </div>
     </main>

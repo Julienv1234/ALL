@@ -6,7 +6,8 @@
  */
 import { useSyncExternalStore } from 'react';
 import * as core from './core';
-import type { CalEvent, Collection, Item, Memory, Note, Settings, State, Task } from './types';
+import { parseCommand } from './parse';
+import type { CalEvent, Collection, Draft, Item, Memory, Note, Settings, State, Task } from './types';
 
 const KEY = 'all.v1';
 const SERVER = core.emptyState();
@@ -169,6 +170,26 @@ export const actions = {
   },
   deleteMemory(m: Memory) {
     commit(core.deleteItem(state, 'memories', m.id, label('Herinnering gewist', 'Memory deleted')));
+  },
+
+  /** Reads a sentence; when it is a command, adds a draft waiting for approval. */
+  propose(text: string): Draft | null {
+    const p = parseCommand(text, core.isoDay());
+    if (!p) return null;
+    const d = core.makeDraft({ ...p, source: text.trim() });
+    commit(core.createItem(state, 'drafts', d, label(`Concept klaargezet: ${q(d.title)}`, `Draft prepared: ${q(d.title)}`)));
+    return d;
+  },
+  updateDraft(d: Draft) {
+    commit(core.updateItem(state, 'drafts', d, label(`Concept aangepast: ${q(d.title)}`, `Draft edited: ${q(d.title)}`)));
+  },
+  approveDraft(d: Draft) {
+    const nl = { task: 'Taak', event: 'Afspraak', note: 'Notitie', memory: 'Herinnering' }[d.kind];
+    const en = { task: 'Task', event: 'Event', note: 'Note', memory: 'Memory' }[d.kind];
+    commit(core.approveDraft(state, d.id, (x) => label(`Goedgekeurd: ${nl.toLowerCase()} ${q(x.title)}`, `Approved: ${en.toLowerCase()} ${q(x.title)}`)));
+  },
+  rejectDraft(d: Draft) {
+    commit(core.deleteItem(state, 'drafts', d.id, label(`Concept weggegooid: ${q(d.title)}`, `Draft discarded: ${q(d.title)}`)));
   },
 
   undo(logId: string) {

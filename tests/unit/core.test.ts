@@ -107,3 +107,39 @@ describe('first cloud sync', () => {
     expect(core.firstSync(withTask(), withTask())).toBe('ask');
   });
 });
+
+describe('drafts wait for approval', () => {
+  const draft = (kind: 'task' | 'event' | 'note' | 'memory') =>
+    core.makeDraft({ kind, title: 'Tandarts', date: '2026-11-19', time: '14:30', project: 'ALL', body: 'b', source: 'zin' });
+
+  it('approving creates the real item and removes the draft', () => {
+    for (const kind of ['task', 'event', 'note', 'memory'] as const) {
+      const d = draft(kind);
+      let s = core.createItem(core.emptyState(), 'drafts', d, 'propose');
+      s = core.approveDraft(s, d.id, () => 'ok');
+      expect(s.drafts).toHaveLength(0);
+      const list = { task: s.tasks, event: s.events, note: s.notes, memory: s.memories }[kind];
+      expect(list).toHaveLength(1);
+    }
+  });
+  it('an approved event keeps date and time; undo removes it again', () => {
+    const d = draft('event');
+    let s = core.approveDraft(core.createItem(core.emptyState(), 'drafts', d, 'p'), d.id, () => 'ok');
+    expect(s.events[0]).toMatchObject({ title: 'Tandarts', date: '2026-11-19', time: '14:30' });
+    s = core.undoLog(s, s.log[0].id, 'undo');
+    expect(s.events).toHaveLength(0);
+  });
+  it('rejecting can be undone', () => {
+    const d = draft('task');
+    let s = core.createItem(core.emptyState(), 'drafts', d, 'p');
+    s = core.deleteItem(s, 'drafts', d.id, 'reject');
+    s = core.undoLog(s, s.log[0].id, 'undo');
+    expect(s.drafts).toEqual([d]);
+  });
+  it('drafts survive saving and loading; broken ones are dropped', () => {
+    const d = draft('note');
+    const s = core.createItem(core.emptyState(), 'drafts', d, 'p');
+    expect(core.parseState(JSON.parse(JSON.stringify(s)))?.drafts).toEqual([d]);
+    expect(core.parseState({ v: 1, drafts: [{ id: 'x', title: 't', kind: 'rocket' }] })?.drafts).toEqual([]);
+  });
+});

@@ -3,7 +3,7 @@
  * where possible, a way to undo it. No React and no browser APIs, so it is
  * easy to test.
  */
-import type { CalEvent, Collection, Item, LogEntry, Memory, Note, State, Task, Undo } from './types';
+import type { CalEvent, Collection, Draft, Item, LogEntry, Memory, Note, State, Task, Undo } from './types';
 
 export const LOG_LIMIT = 500;
 
@@ -14,6 +14,7 @@ export function emptyState(): State {
     notes: [],
     events: [],
     memories: [],
+    drafts: [],
     log: [],
     settings: { lang: 'nl', name: '' },
   };
@@ -103,6 +104,23 @@ export function makeMemory(text: string): Memory {
   return { id: newId(), text: text.trim(), createdAt: t, updatedAt: t };
 }
 
+/* ---------- drafts ---------- */
+
+export function makeDraft(d: Omit<Draft, 'id' | 'createdAt'>): Draft {
+  return { ...d, id: newId(), createdAt: nowIso() };
+}
+
+/** Turns an approved draft into the real thing. One log entry; undo removes the created item. */
+export function approveDraft(s: State, draftId: string, label: (d: Draft) => string): State {
+  const d = s.drafts.find((x) => x.id === draftId);
+  if (!d) return s;
+  const without: State = { ...s, drafts: s.drafts.filter((x) => x.id !== draftId) };
+  if (d.kind === 'task') return createItem(without, 'tasks', makeTask(d.title, d.project, d.date), label(d));
+  if (d.kind === 'event') return createItem(without, 'events', makeEvent(d.title, d.date, d.time), label(d));
+  if (d.kind === 'note') return createItem(without, 'notes', makeNote(d.title, d.body), label(d));
+  return createItem(without, 'memories', makeMemory(d.title), label(d));
+}
+
 /* ---------- import / export ---------- */
 
 const isStr = (v: unknown): v is string => typeof v === 'string';
@@ -133,6 +151,17 @@ function cleanMemory(x: unknown): Memory | null {
   return { id: x.id, text: x.text, createdAt: t, updatedAt: isStr(x.updatedAt) ? x.updatedAt : t };
 }
 
+function cleanDraft(x: unknown): Draft | null {
+  if (!isObj(x) || !isStr(x.id) || !isStr(x.title)) return null;
+  const kind = x.kind === 'task' || x.kind === 'event' || x.kind === 'note' || x.kind === 'memory' ? x.kind : null;
+  if (!kind) return null;
+  const str = (v: unknown) => (isStr(v) ? v : '');
+  return {
+    id: x.id, kind, title: x.title, date: str(x.date), time: str(x.time), project: str(x.project), body: str(x.body),
+    source: str(x.source), createdAt: isStr(x.createdAt) ? x.createdAt : nowIso(),
+  };
+}
+
 function cleanList<T>(v: unknown, f: (x: unknown) => T | null): T[] {
   if (!Array.isArray(v)) return [];
   return v.map(f).filter((x): x is T => x !== null);
@@ -152,6 +181,7 @@ export function parseState(raw: unknown): State | null {
     notes: cleanList(raw.notes, cleanNote),
     events: cleanList(raw.events, cleanEvent),
     memories: cleanList(raw.memories, cleanMemory),
+    drafts: cleanList(raw.drafts, cleanDraft),
     log,
     settings: {
       lang: st.lang === 'en' ? 'en' : base.settings.lang,

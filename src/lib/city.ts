@@ -14,9 +14,9 @@ export interface ModuleDef {
 
 export const MODULES: ModuleDef[] = [
   { id: 'hub', asset: 'hub', uv: [0, 0], href: '/logboek/' },
-  { id: 'assistent', asset: 'assistent', uv: [-11.5, 0], phase: 2 },
+  { id: 'assistent', asset: 'assistent', uv: [-11.5, 0] },
   { id: 'mail', asset: 'mail', uv: [-21, 0], phase: 3 },
-  { id: 'briefing', asset: 'briefing', uv: [0, -11.5], phase: 4 },
+  { id: 'briefing', asset: 'briefing', uv: [0, -11.5] },
   { id: 'agenda', asset: 'agenda', uv: [0, -21], href: '/agenda/' },
   { id: 'taken', asset: 'taken', uv: [0, 11], href: '/taken/' },
   { id: 'notities', asset: 'notities', uv: [11, 0], href: '/notities/' },
@@ -36,9 +36,9 @@ export const ROUTES: [ModuleId, ModuleId, RouteKind][] = [
   ['hub', 'taken', 'live'],
   ['hub', 'notities', 'live'],
   ['agenda', 'briefing', 'link'],
-  ['briefing', 'hub', 'link'],
+  ['briefing', 'hub', 'live'],
   ['mail', 'assistent', 'later'],
-  ['assistent', 'hub', 'later'],
+  ['assistent', 'hub', 'live'],
   ['onderzoeker', 'notities', 'later'],
   ['taken', 'web', 'later'],
   ['notities', 'web', 'later'],

@@ -176,6 +176,47 @@ await step('city with tasks, list view, zoom', async () => {
   await shot('08-home-list');
 });
 
+await step('a sentence in Ask ALL becomes a draft; approving makes the event', async () => {
+  await page.goto(BASE + '/taken/');
+  await page.getByLabel('Vraag ALL').fill('afspraak tandarts morgen om 14:30');
+  await page.getByLabel('Vraag ALL').press('Enter');
+  await page.waitForURL(BASE + '/');
+  await page.getByText('Concept klaargezet').waitFor();
+  await page.getByText('Uit je zin: “afspraak tandarts morgen om 14:30”').waitFor();
+  await shot('11-draft');
+  await page.getByRole('button', { name: 'Aanpassen', exact: true }).click();
+  await page.getByRole('region', { name: 'Wacht op jouw akkoord' }).getByLabel('Titel').fill('Tandarts controle');
+  await page.getByRole('button', { name: 'Opslaan', exact: true }).click();
+  await page.getByText('Tandarts controle').waitFor();
+  await page.getByRole('button', { name: 'Goedkeuren' }).click();
+  await page.getByText('Goedgekeurd. Terugdraaien kan.').waitFor();
+  await page.goto(BASE + '/agenda/');
+  await page.getByRole('heading', { name: 'Morgen' }).waitFor();
+  await page.getByText('Tandarts controle').waitFor();
+  expect(await page.getByText('14:30').count() >= 1, 'time missing');
+});
+
+await step('discard a draft, undo, then approve it as a memory', async () => {
+  await page.getByLabel('Vraag ALL').fill('onthoud dat ik maandag vrij ben');
+  await page.getByLabel('Vraag ALL').press('Enter');
+  await page.waitForURL(BASE + '/');
+  await page.getByRole('button', { name: 'Weggooien' }).click();
+  await page.getByText(/Niets te keuren/).waitFor();
+  await page.getByRole('status').getByRole('button', { name: 'Terugdraaien' }).click();
+  await page.getByRole('button', { name: 'Goedkeuren' }).click();
+  await page.goto(BASE + '/geheugen/');
+  await page.getByText('Ik maandag vrij ben').waitFor();
+});
+
+await step('briefing reflects today', async () => {
+  await page.goto(BASE + '/');
+  await page.getByRole('heading', { name: 'Briefing' }).waitFor();
+  await page.getByText('Vandaag: 15:30 Werken aan ALL.').waitFor();
+  await page.getByText('Morgen begint met 14:30 Tandarts controle.').waitFor();
+  await page.getByRole('button', { name: /^Briefing-agent/ }).click();
+  await page.getByText('Berekend uit je eigen gegevens, zonder AI.').waitFor();
+});
+
 await step('later screens render', async () => {
   for (const p of ['/agents/', '/workflows/']) {
     await page.goto(BASE + p);
